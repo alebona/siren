@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "siren"
+version = "0.1.0"
+description = "Disposable debug call for Python."
+authors = [{name="Alebona"}]
+requires-python = ">=2.7"
