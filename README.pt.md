@@ -1,140 +1,171 @@
+Perfeito! Aqui está a versão completa em **português**, em Markdown, pronta para copy-paste:
+
+````markdown
 # Siren
 
 Ferramenta minimalista de debug para Python.
 
-Siren é uma alternativa leve ao print / pprint,
-projetada para funcionar em qualquer versão do Python,
-incluindo Python 2.7, e qualquer framework como Django,
-Flask, FastAPI ou scripts simples.
+Siren é uma alternativa leve ao `print` / `pprint`, projetada para funcionar  
+com qualquer versão do Python 3 e qualquer framework como Django, Flask, FastAPI ou scripts Python puros.
 
-Objetivo do Siren:
+O objetivo principal do Siren é simples:
 
-✔ Debug rápido  
-✔ Remover debug automaticamente  
+✔ Depurar rapidamente  
+✔ Rastrear funções automaticamente  
+✔ Medir tempo de execução  
+✔ Remover linhas de debug automaticamente  
 ✔ Funcionar em qualquer lugar  
 ✔ Sem dependências  
 
 ---
 
-## Recursos
+## Funcionalidades
 
-- Funciona no Python 2.7+
-- Funciona no Python 3+
-- Sem dependências externas
-- Usa print ou pprint automaticamente
-- Mostra arquivo e linha
-- Remove chamadas automaticamente
-- Cleaner seguro com tokenize
-- Funciona em Django / Flask / scripts
+- Funciona em Python 3+  
+- Sem dependências externas  
+- Usa `print` ou `pprint` automaticamente para objetos complexos  
+- Mostra arquivo e número da linha  
+- Timer opcional (`timeit=True`)  
+- Decorator trace para registrar chamadas e retornos de funções (`@siren.trace`)  
+- Pode remover todas as chamadas de debug automaticamente  
+- Cleaner seguro usando tokenize do Python  
+- Funciona em Django / Flask / FastAPI / scripts / CLI  
+- Saída colorida com emoji  
 
 ---
 
-## Instalação (local)
+## Instalação
 
-Clone o repositório:
+Instale o Siren via pip:
 
+```bash
+pip install siren-debug
+````
 
-git clone https://github.com/seuuser/siren.git
+Em seguida, adicione `siren` à configuração do seu framework:
 
-
-Copie a pasta `siren` para dentro do seu projeto
-ou adicione ao PYTHONPATH.
-
-Exemplo:
-
-
-from siren import siren
-
+```python
+# Exemplo Django
+INSTALLED_APPS = [
+    # ...
+    "siren",
+]
+```
 
 ---
 
 ## Uso
 
-
-from siren import siren
-
+```python
 x = 10
 data = {"a": 1, "b": [1, 2, 3]}
 
 siren(x)
 siren(data)
-
+```
 
 Saída:
 
+```text
+[🧜‍ SIREN core.py:10] x = 10
+[🧜‍ SIREN core.py:11] data = {'a': 1, 'b': [1, 2, 3]}
+```
 
-[SIREN arquivo.py:10] 10
-[SIREN arquivo.py:11] {'a': 1, 'b': [1, 2, 3]}
-
-
-O Siren usa pprint automaticamente para objetos complexos.
+Siren usa `pprint` automaticamente para objetos complexos.
 
 ---
 
 ## Múltiplos valores
 
-
+```python
 siren(x, data, user)
-
+```
 
 ---
 
-## Cleaner (remover todos os siren)
+## Timer
 
-Principal recurso da ferramenta.
+```python
+siren(x, timeit=True)
+```
 
-Remove todas as linhas com `siren(...)`:
+Exibe o valor **e** o tempo de execução:
 
+```text
+[🧜‍ SIREN core.py:10] x = 10
+[🧜‍ SIREN TIME] 0.000123s
+```
 
-python -m siren.clean .
+---
 
+## Decorator Trace
 
-ou
+```python
+@siren.trace
+def soma(a, b):
+    return a + b
 
+soma(2, 3)
+```
 
-python siren/clean.py .
+Saída:
 
+```text
+[🧜‍ SIREN core.py:10] Calling soma
+[🧜‍ SIREN core.py:11] Returned from soma -> 5
+```
+
+---
+
+## Cleaner (remover todas as chamadas de siren)
+
+Esta é a principal funcionalidade.
+
+Remove todas as linhas que chamam `siren(...)`:
+
+```bash
+siren-clean
+```
 
 Exemplo:
 
-Antes:
+**Antes:**
 
-
+```python
 siren(x)
 print("hello")
 siren(data)
+```
 
+**Depois:**
 
-Depois:
-
-
+```python
 print("hello")
+```
 
-
-O cleaner é seguro e usa tokenize.
-
-Não remove comentários nem strings.
+O cleaner é seguro e usa o tokenize do Python.
+Ele **não remove comentários ou strings**.
 
 ---
 
 ## Por que usar Siren?
 
-Usar print para debug é fácil,
-mas remover depois é chato.
+Usar `print` ou `pprint` para debug é fácil,
+mas removê-los depois é doloroso.
 
 Siren resolve isso.
 
 Use:
 
+```python
+siren(value)
+```
 
-siren(valor)
+E depois:
 
-
-Depois:
-
-
-limpar tudo
-
+```bash
+siren-clean
+```
 
 Pronto.
 
@@ -142,12 +173,13 @@ Pronto.
 
 ## Objetivos
 
-- Minimalista
-- Seguro
-- Compatível com versões antigas
-- Sem dependências
-- Fácil de limpar
-- Funciona offline
+* Minimalista
+* Seguro
+* Cross-version
+* Sem dependências
+* Limpeza fácil
+* Funciona offline
+* Rastreio de funções e medição de tempo
 
 ---
 

@@ -1,3 +1,5 @@
-from .core import siren
+import builtins
+from .core import siren  # importa a instância global da sua lib
 
-__all__ = ["siren"]
+# torna a instância disponível globalmente
+builtins.siren = siren

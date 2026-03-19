@@ -1,25 +1,36 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+
 import os
 import sys
-import tokenize
+import re
 
 TOKEN_NAME = "siren"
 
+CALL_RE = re.compile(r"\bsiren\s*\(")
+
+# detecta import de siren
+IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren")
+
+# ANSI para rosa
+PINK = "\033[95m"
+RESET = "\033[0m"
+EMOJI = "🧜‍♀️"
+
 
 def line_calls_siren(line):
-    try:
-        tokens = list(tokenize.generate_tokens(lambda L=[line]: L.pop(0)))
-    except Exception:
+    stripped = line.strip()
+
+    # ignorar outros imports
+    if stripped.startswith("import "):
+        # mas remove import específico
+        if IMPORT_RE.match(stripped):
+            return True
         return False
 
-    for i, tok in enumerate(tokens):
-        if tok.type == tokenize.NAME and tok.string == TOKEN_NAME:
-            # verificar se próximo token é "("
-            if i + 1 < len(tokens):
-                next_tok = tokens[i + 1]
-                if next_tok.string == "(":
-                    return True
+    if CALL_RE.search(line):
+        return True
+
     return False
 
 
@@ -38,6 +49,7 @@ def clean_file(path):
         if line_calls_siren(line):
             removed += 1
             continue
+
         new_lines.append(line)
 
     if removed:
@@ -54,9 +66,13 @@ def clean_file(path):
 def clean_directory(root):
     total_removed = 0
 
-    for base, _, files in os.walk(root):
+    for base, dirs, files in os.walk(root):
+
         # ignorar venv automaticamente
-        if "venv" in base:
+        if "venv" in base.lower():
+            continue
+
+        if "__pycache__" in base:
             continue
 
         for name in files:
@@ -70,7 +86,12 @@ def clean_directory(root):
 def main():
     target = sys.argv[1] if len(sys.argv) > 1 else "."
     removed = clean_directory(target)
-    print("SIREN CLEAN: {} linhas removidas".format(removed))
+    print("[{emoji}{pink}SIREN CLEAN]:{reset} {removed} linhas removidas".format(
+        emoji=EMOJI,
+        pink=PINK,
+        reset=RESET,
+        removed=removed
+    ))
 
 
 if __name__ == "__main__":

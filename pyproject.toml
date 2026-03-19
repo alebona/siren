@@ -1,10 +1,22 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "siren"
-version = "0.1.0"
-description = "Disposable debug call for Python."
-authors = [{name="Alebona"}]
+name = "siren-debug"
+version = "0.1.2"
+description = "Minimalist debug tool for Python with automatic cleaner"
+readme = "README.md"
+authors = [
+    { name = "Alexandra Bona Abreu" }
+]
+license = { text = "MIT" }
 requires-python = ">=2.7"
+
+dependencies = []
+
+[project.scripts]
+siren-clean = "siren.clean:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
