@@ -116,7 +116,7 @@ siren(value)
 
 And later:
 
-clean all
+siren-clean
 
 Done.
 
