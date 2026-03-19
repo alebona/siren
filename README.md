@@ -1,5 +1,7 @@
 # Siren
 
+https://pypi.org/project/siren-debug/
+
 Minimalist debug tool for Python.
 
 Siren is a lightweight alternative to `print` / `pprint`, designed to work  

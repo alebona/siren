@@ -1,7 +1,6 @@
-Perfeito! Aqui está a versão completa em **português**, em Markdown, pronta para copy-paste:
-
-````markdown
 # Siren
+
+https://pypi.org/project/siren-debug/
 
 Ferramenta minimalista de debug para Python.
 
