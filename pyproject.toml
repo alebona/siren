@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siren-debug"
-version = "0.2.0"
+version = "0.2.1"
 description = "Minimalist debug tool for Python with automatic cleaner"
 readme = "README.md"
 authors = [

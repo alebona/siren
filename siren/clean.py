@@ -13,7 +13,7 @@ CALL_RE = re.compile(r"\bsiren\s*\(")
 IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren")
 
 # ANSI para rosa
-PINK = "\033[95m"
+COLOR = "\033[38;2;255;105;180m"
 RESET = "\033[0m"
 EMOJI = "🧜‍♀️"
 
@@ -86,9 +86,9 @@ def clean_directory(root):
 def main():
     target = sys.argv[1] if len(sys.argv) > 1 else "."
     removed = clean_directory(target)
-    print("[{emoji}{pink}SIREN CLEAN]:{reset} {removed} linhas removidas".format(
+    print("[{emoji}{COLOR}SIREN CLEAN]:{reset} {removed} linhas removidas".format(
         emoji=EMOJI,
-        pink=PINK,
+        COLOR=COLOR,
         reset=RESET,
         removed=removed
     ))

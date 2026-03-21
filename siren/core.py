@@ -13,6 +13,29 @@ COLOR = "\033[38;2;255;105;180m"
 RESET = "\033[0m"
 EMOJI = '🧜‍' #"🔱"
 
+PROJECT_MARKERS = [
+    ".git",
+    "pyproject.toml",
+    "setup.py",
+    "requirements.txt",
+    "manage.py",
+]
+
+def find_project_root(start_path):
+    path = os.path.abspath(start_path)
+
+    while True:
+        for marker in PROJECT_MARKERS:
+            if os.path.exists(os.path.join(path, marker)):
+                return path
+
+        parent = os.path.dirname(path)
+
+        if parent == path:
+            return None
+
+        path = parent
+
 
 def _is_simple(value):
     return isinstance(value, (int, float, str, bool, type(None)))
@@ -26,10 +49,16 @@ def _get_call_source(frame):
 
     return line
 
-def get_rel_path():
-    frame = inspect.stack()[1]
-    caminho_absoluto = frame.filename
-    return os.path.relpath(caminho_absoluto, BASE_DIR)
+
+def get_rel_path(frame):
+    caminho = frame.f_code.co_filename
+
+    root = find_project_root(caminho)
+
+    if root:
+        return os.path.relpath(caminho, root)
+
+    return caminho
 
 
 def _extract_args(source):
@@ -52,7 +81,7 @@ def _prefix(frame, label=None):
     base = "{}[{}SIREN {}:{}]{}".format(
         COLOR,
         EMOJI,
-        get_rel_path(),
+        get_rel_path(frame),
         lineno,
         RESET,
     )
@@ -128,6 +157,12 @@ def trace(func):
         return result
 
     return wrapper
+
+def info(*args, **kwargs):
+    """
+    Siren info message
+    """
+    siren(*args, **kwargs)
 
 
 
