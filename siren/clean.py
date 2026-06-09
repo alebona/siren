@@ -1,52 +1,90 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import io
 import os
-import sys
 import re
+import sys
+import tokenize
+from datetime import datetime
 
 TOKEN_NAME = "siren"
 
-CALL_RE = re.compile(r"\bsiren\s*\(")
-
-# detecta import de siren
-IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren")
+IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren(?:\s+as\s+\w+)?\s*(?:#.*)?$")
 
 # ANSI para rosa
 COLOR = "\033[38;2;255;105;180m"
 RESET = "\033[0m"
-EMOJI = "🧜‍♀️"
+EMOJI = "🧜‍"
 
 
-def line_calls_siren(line):
-    stripped = line.strip()
+def _format_timestamp():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # ignorar outros imports
-    if stripped.startswith("import "):
-        # mas remove import específico
-        if IMPORT_RE.match(stripped):
-            return True
-        return False
 
-    if CALL_RE.search(line):
-        return True
+def _collect_siren_lines(source):
+    lines = source.splitlines(keepends=True)
+    marked = set()
 
-    return False
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+    except tokenize.TokenError:
+        return marked
+
+    for index, token in enumerate(tokens):
+        toknum, tokval, start, _, _ = token
+
+        if toknum == tokenize.NAME and tokval == TOKEN_NAME:
+            j = index + 1
+            while j < len(tokens) and tokens[j][0] in (
+                tokenize.NL,
+                tokenize.NEWLINE,
+                tokenize.INDENT,
+                tokenize.DEDENT,
+                tokenize.ENDMARKER,
+            ):
+                j += 1
+
+            if j < len(tokens) and tokens[j][0] == tokenize.OP and tokens[j][1] == "(":
+                depth = 0
+                k = j
+
+                while k < len(tokens):
+                    toknum2, tokval2, start2, _, _ = tokens[k]
+                    marked.add(start2[0])
+
+                    if toknum2 == tokenize.OP:
+                        if tokval2 == "(":
+                            depth += 1
+                        elif tokval2 == ")":
+                            depth -= 1
+                            if depth == 0:
+                                break
+
+                    k += 1
+
+    for lineno, line in enumerate(lines, 1):
+        if IMPORT_RE.match(line):
+            marked.add(lineno)
+
+    return marked
 
 
 def clean_file(path):
     try:
         with open(path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
+            source = f.read()
     except TypeError:
         with open(path, "r") as f:
-            lines = f.readlines()
+            source = f.read()
 
-    new_lines = []
+    lines = source.splitlines(keepends=True)
+    marked = _collect_siren_lines(source)
     removed = 0
 
-    for line in lines:
-        if line_calls_siren(line):
+    new_lines = []
+    for lineno, line in enumerate(lines, start=1):
+        if lineno in marked:
             removed += 1
             continue
 
@@ -86,12 +124,16 @@ def clean_directory(root):
 def main():
     target = sys.argv[1] if len(sys.argv) > 1 else "."
     removed = clean_directory(target)
-    print("[{emoji}{COLOR}SIREN CLEAN]:{reset} {removed} linhas removidas".format(
-        emoji=EMOJI,
-        COLOR=COLOR,
-        reset=RESET,
-        removed=removed
-    ))
+    print(
+        "{}[{} SIREN CLEAN {}] {}{} linhas removidas{}".format(
+            COLOR,
+            EMOJI,
+            _format_timestamp(),
+            COLOR,
+            removed,
+            RESET,
+        )
+    )
 
 
 if __name__ == "__main__":
