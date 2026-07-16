@@ -5,8 +5,9 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 
-from siren import clean, core
+from siren import autoload, clean, core
 
 
 class TestSirenCleaner(unittest.TestCase):
@@ -64,6 +65,109 @@ class TestSirenCleaner(unittest.TestCase):
         self.assertIn("def foo():", result)
         self.assertIn("print('done')", result)
         self.assertNotIn("siren(", result)
+
+    def test_clean_file_does_not_strip_siren_function_definition(self):
+        source = """
+            def siren(*values, **kwargs):
+                \"\"\"docstring\"\"\"
+                return values
+
+            def info(*args, **kwargs):
+                \"\"\"info docstring\"\"\"
+                siren(*args, **kwargs)
+        """
+
+        path = self._write_temp_file(source)
+        removed = clean.clean_file(path)
+
+        with open(path, encoding="utf-8") as f:
+            result = f.read()
+
+        os.unlink(path)
+
+        compile(result, path, "exec")
+        self.assertEqual(removed, 1)
+        self.assertIn("def siren(*values, **kwargs):", result)
+        self.assertNotIn("siren(*args, **kwargs)", result)
+
+    def test_clean_file_ignores_import_pattern_inside_string_literal(self):
+        source = '''
+            source = """
+            from siren import siren
+            x = 1
+            """
+            print(source)
+        '''
+
+        path = self._write_temp_file(source)
+        removed = clean.clean_file(path)
+
+        with open(path, encoding="utf-8") as f:
+            result = f.read()
+
+        os.unlink(path)
+
+        self.assertEqual(removed, 0)
+        self.assertIn("from siren import siren", result)
+
+    def test_clean_file_leaves_file_untouched_if_removal_would_break_syntax(self):
+        source = """
+            def debug_only():
+                siren(x)
+
+            print('after')
+        """
+
+        path = self._write_temp_file(source)
+        original = self._read(path)
+
+        removed = clean.clean_file(path)
+
+        result = self._read(path)
+
+        os.unlink(path)
+
+        self.assertEqual(removed, 0)
+        self.assertEqual(result, original)
+
+    def _read(self, path):
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+
+
+class TestSirenAutoload(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        patcher = mock.patch.object(autoload.sysconfig, "get_path", return_value=self.tmpdir)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_enable_writes_pth_file(self):
+        self.assertFalse(autoload.is_enabled())
+
+        path = autoload.enable()
+
+        self.assertTrue(os.path.exists(path))
+        self.assertTrue(autoload.is_enabled())
+        with open(path, encoding="utf-8") as f:
+            content = f.read()
+        self.assertEqual(content, autoload.PTH_CONTENT)
+        # site.py only exec()s .pth lines starting with "import " - must hold.
+        self.assertTrue(content.startswith("import "))
+        # The line itself must be valid Python (this is what site.py exec()s).
+        compile(content, "<pth>", "exec")
+
+    def test_disable_removes_pth_file(self):
+        autoload.enable()
+        self.assertTrue(autoload.is_enabled())
+
+        removed = autoload.disable()
+
+        self.assertTrue(removed)
+        self.assertFalse(autoload.is_enabled())
+
+    def test_disable_when_not_enabled_is_a_noop(self):
+        self.assertFalse(autoload.disable())
 
 
 class TestSirenCore(unittest.TestCase):

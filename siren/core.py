@@ -2,7 +2,6 @@
 from __future__ import print_function
 
 import io
-import io
 import pprint
 import inspect
 import linecache
@@ -11,7 +10,8 @@ import time
 import os
 import tokenize
 from datetime import datetime
-import tokenize
+
+from ._output import safe_print
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COLOR = "\033[38;2;255;105;180m"
@@ -62,7 +62,7 @@ def _print_output(text):
     if _SIREN_CONFIG["quiet"]:
         return
 
-    print(text)
+    safe_print(text)
 
     if _SIREN_CONFIG["logfile"]:
         try:

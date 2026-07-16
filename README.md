@@ -175,6 +175,25 @@ The cleaner preserves comments and string literals.
 
 ---
 
+## Autoload (no per-file imports)
+
+By default you still need `from siren import siren` in every file that uses it. If you'd rather call `siren(x)` anywhere in a project without importing it each time, enable autoload once per environment (virtualenv, Docker image, CI job, etc.):
+
+```bash
+siren-autoload on
+```
+
+This writes a `.pth` file into the current environment's `site-packages`, so `siren` is injected into Python's builtins as soon as any interpreter starts in that environment — no import needed anywhere, including in Django apps, Flask views, scripts, or the shell.
+
+```bash
+siren-autoload status   # check whether it's enabled
+siren-autoload off      # disable again
+```
+
+Because it's opt-in per environment (nothing changes just from `pip install`), it won't silently affect environments where you didn't run `on`.
+
+---
+
 ## Advanced Features
 
 ### Quiet mode (suppress output for specific calls)
