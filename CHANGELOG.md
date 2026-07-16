@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.4.0] - 2026-07-15
+
+### Added
+- `siren-autoload` command (`on` / `off` / `status`) to inject `siren` into Python builtins for every process in the current environment via a `.pth` file in `site-packages`, so it can be used anywhere without `from siren import siren` in each file. Opt-in per environment.
+
+### Fixed
+- `siren-clean` no longer strips `def siren(...)` (or any function definition) when it happens to be named `siren` — previously this deleted the `def` line itself and left an indented, syntactically invalid body.
+- `siren-clean` no longer removes `from siren import siren`-looking text found inside multi-line string literals (e.g. test fixtures).
+- `siren-clean` now verifies the cleaned output still compiles before writing; if removing a call would leave an empty code block, the file is left untouched instead of being corrupted.
+- Fixed `UnicodeEncodeError` crashing every `siren(...)` call, `siren-clean`, and `siren-autoload` output on consoles using a narrow encoding (e.g. the cp1252 default on plain Windows terminals) — output now falls back gracefully instead of crashing.
+
+---
+
 ## [0.3.0] - 2026-06-08
 
 ### Added

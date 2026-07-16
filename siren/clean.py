@@ -8,6 +8,8 @@ import sys
 import tokenize
 from datetime import datetime
 
+from ._output import safe_print
+
 TOKEN_NAME = "siren"
 
 IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren(?:\s+as\s+\w+)?\s*(?:#.*)?$")
@@ -22,6 +24,19 @@ def _format_timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _multiline_string_lines(tokens):
+    """Line numbers that fall entirely inside a multi-line string literal."""
+    lines = set()
+
+    for token in tokens:
+        if token[0] == tokenize.STRING:
+            start_row, end_row = token[2][0], token[3][0]
+            if end_row > start_row:
+                lines.update(range(start_row + 1, end_row + 1))
+
+    return lines
+
+
 def _collect_siren_lines(source):
     lines = source.splitlines(keepends=True)
     marked = set()
@@ -31,10 +46,26 @@ def _collect_siren_lines(source):
     except tokenize.TokenError:
         return marked
 
+    string_lines = _multiline_string_lines(tokens)
+
     for index, token in enumerate(tokens):
         toknum, tokval, start, _, _ = token
 
         if toknum == tokenize.NAME and tokval == TOKEN_NAME:
+            # Skip definitions like `def siren(...)` / `def siren.trace(...)` -
+            # only actual calls should be stripped, not the definition itself.
+            prev = index - 1
+            while prev >= 0 and tokens[prev][0] in (
+                tokenize.NL,
+                tokenize.INDENT,
+                tokenize.DEDENT,
+                tokenize.COMMENT,
+            ):
+                prev -= 1
+
+            if prev >= 0 and tokens[prev][0] == tokenize.NAME and tokens[prev][1] == "def":
+                continue
+
             j = index + 1
             while j < len(tokens) and tokens[j][0] in (
                 tokenize.NL,
@@ -64,6 +95,8 @@ def _collect_siren_lines(source):
                     k += 1
 
     for lineno, line in enumerate(lines, 1):
+        if lineno in string_lines:
+            continue
         if IMPORT_RE.match(line):
             marked.add(lineno)
 
@@ -80,25 +113,28 @@ def clean_file(path):
 
     lines = source.splitlines(keepends=True)
     marked = _collect_siren_lines(source)
-    removed = 0
 
-    new_lines = []
-    for lineno, line in enumerate(lines, start=1):
-        if lineno in marked:
-            removed += 1
-            continue
+    if not marked:
+        return 0
 
-        new_lines.append(line)
+    new_lines = [line for lineno, line in enumerate(lines, start=1) if lineno not in marked]
+    new_source = "".join(new_lines)
 
-    if removed:
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.writelines(new_lines)
-        except TypeError:
-            with open(path, "w") as f:
-                f.writelines(new_lines)
+    try:
+        compile(new_source, path, "exec")
+    except SyntaxError:
+        # Removing these lines would leave invalid Python (e.g. an emptied
+        # block). Leave the file untouched rather than corrupting it.
+        return 0
 
-    return removed
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(new_source)
+    except TypeError:
+        with open(path, "w") as f:
+            f.write(new_source)
+
+    return len(marked)
 
 
 def clean_directory(root):
@@ -124,7 +160,7 @@ def clean_directory(root):
 def main():
     target = sys.argv[1] if len(sys.argv) > 1 else "."
     removed = clean_directory(target)
-    print(
+    safe_print(
         "{}[{} SIREN CLEAN {}] {}{} linhas removidas{}".format(
             COLOR,
             EMOJI,
