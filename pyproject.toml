@@ -21,3 +21,4 @@ siren-autoload = "siren.autoload:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["siren*"]
