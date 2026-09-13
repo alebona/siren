@@ -19,6 +19,7 @@ Completes the free-tier feature set from the project roadmap (see `ROADMAP.md`),
 - `siren-snippet` — save/show/list/remove small text snippets from the terminal (`~/.siren/snippets/`).
 - `siren-http` — a small httpie-like HTTP client (GET/POST/PUT/PATCH/DELETE, custom headers, JSON/raw body) built on `urllib` only, plus local, replayable request collections (`--save`, `replay`, `list`).
 - `siren-quality` — local code-quality helpers built on `ast`: `deadcode` (unused imports/module-level defs), `lint` (bare `except:`, leftover `pdb.set_trace()`/`breakpoint()`, TODO/FIXME comments), `complexity` (cyclomatic complexity per function).
+- `siren.patch_requests()` / `siren.patch_httpx()` — opt-in logging of every HTTP call made through `requests` or `httpx` (method/url/status/duration), with matching `unpatch_*()` calls. Neither library is a dependency; they're only imported when a patch function is actually called.
 
 ---
 

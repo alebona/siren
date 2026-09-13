@@ -7,10 +7,12 @@ from .core import (
     siren, trace, info, set_quiet, set_logfile, set_enabled, get_config,
     diff, breakpoint_debug, memory, catch,
 )
+from .http_patch import patch_requests, unpatch_requests, patch_httpx, unpatch_httpx
 
 __all__ = [
     "siren", "trace", "info", "set_quiet", "set_logfile", "set_enabled",
     "get_config", "diff", "breakpoint_debug", "memory", "catch",
+    "patch_requests", "unpatch_requests", "patch_httpx", "unpatch_httpx",
 ]
 
 builtins.siren = siren
@@ -25,3 +27,7 @@ siren.diff = diff
 siren.breakpoint = breakpoint_debug
 siren.memory = memory
 siren.catch = catch
+siren.patch_requests = patch_requests
+siren.unpatch_requests = unpatch_requests
+siren.patch_httpx = patch_httpx
+siren.unpatch_httpx = unpatch_httpx

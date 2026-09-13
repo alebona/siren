@@ -295,6 +295,15 @@ siren-http replay minha-requisicao                                     # reenvia
 siren-http list                                                        # lista requisições salvas
 ```
 
+Também dá pra logar automaticamente toda chamada HTTP feita pelo seu próprio código via `requests` ou `httpx`, sem tocar nesse código — `requests`/`httpx` não são dependências do siren, só são importados quando você chama isso:
+
+```python
+siren.patch_requests()    # toda chamada requests.Session passa a logar método/url/status/duração
+siren.patch_httpx()       # o mesmo, para httpx.Client (só síncrono)
+siren.unpatch_requests()
+siren.unpatch_httpx()
+```
+
 ### Qualidade de código — `siren-quality`
 
 Checagens locais construídas sobre o módulo `ast` da stdlib (sem depender de pyflakes/radon/etc):

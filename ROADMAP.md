@@ -81,12 +81,12 @@ pelo menos uma feature grátis como porta de entrada.
 - Sync de configs/snippets entre máquinas
 - Histórico de scaffolds gerados por projeto/equipe
 
-### 🌐 Integração com API/HTTP — free ✅ concluído (v0.6.0, com 1 item adiado)
+### 🌐 Integração com API/HTTP — free ✅ concluído (v0.6.0)
 
 **Grátis (local)**
 - ✅ Cliente HTTP embutido tipo httpie (`siren-http GET/POST/PUT/PATCH/DELETE`)
 - ✅ "Collections" de requests salvas em arquivo local (JSON, via `--save`/`replay`/`list`)
-- ⏸️ Adiado: inspeção/log automático de requests feitas por `requests`/`httpx` via patch — decisão explícita de escopo em 2026-09-13 (ver "Contexto da decisão" abaixo); pode entrar depois
+- ✅ Inspeção/log automático de requests feitas por `requests`/`httpx` via patch (`siren.patch_requests()` / `siren.patch_httpx()`, opt-in, sem dependência obrigatória — só o `httpx.Client` síncrono é coberto, não `AsyncClient`)
 
 **Pago (nuvem)**
 - Mock server hospedado com URL pública
@@ -146,11 +146,10 @@ pelo menos uma feature grátis como porta de entrada.
 ### Atualização 2026-09-13 — free tier implementado
 
 Todas as 4 áreas tiveram seu lado grátis implementado em `v0.6.0`, numa
-tacada só (decisão do usuário: "tudo de uma vez" em vez de fasear). Decisões
-tomadas durante a implementação:
-- HTTP: só cliente CLI + collections locais; o patch automático de
-  `requests`/`httpx` para logging ficou de fora por decisão explícita, pode
-  virar um item futuro.
+tacada só (decisão do usuário: "tudo de uma vez" em vez de fasear). O patch
+de `requests`/`httpx` foi inicialmente adiado por decisão de escopo, e depois
+implementado mesmo assim a pedido do usuário (`siren.patch_requests()` /
+`siren.patch_httpx()`). Decisões tomadas durante a implementação:
 - Vários bullets do roadmap foram consolidados em menos comandos do que o
   rascunho original sugeria (ex: scaffolding + boilerplate viraram um único
   `siren-scaffold`; deadcode + lint + complexity viraram um único
