@@ -16,11 +16,7 @@ Ferramenta mínima de debug para Python com limpeza automática.
 pip install siren-debug
 ```
 
-O pacote também instala o comando de limpeza:
-
-```bash
-siren-clean
-```
+O pacote também instala dois comandos: `siren-clean` (remove chamadas de debug) e `siren-autoload` (usa `siren` sem precisar importar).
 
 ---
 
@@ -36,27 +32,25 @@ siren(x)
 siren(user)
 ```
 
-Exemplo de saída:
-
 ```text
 [🧜‍ SIREN core.py:10] x = 10
 [🧜‍ SIREN core.py:11] user = {'nome': 'Alex', 'itens': [1, 2, 3]}
 ```
 
-Siren usa `pprint` automaticamente para objetos complexos.
+Siren usa `pprint` automaticamente para objetos complexos, e identifica sozinho o arquivo/linha de onde foi chamado.
 
 ---
 
 ## Funcionalidades
 
-- Funciona com Python 3+
+- Funciona com Python 2.7 e 3.6+
 - Sem dependências externas
 - Exibe valores com arquivo e número da linha
-- Usa `pprint` para objetos complexos
-- Timer opcional com `timeit=True`
-- Trace decorator com `@siren.trace`
-- Remove chamadas `siren(...)` automaticamente
-- Limpeza segura usando `tokenize` do Python
+- Usa `pprint` automaticamente para objetos complexos
+- Trace de função com `@siren.trace`, diff de objetos com `siren.diff`, e breakpoint interativo com `siren.breakpoint()`
+- Modo silencioso, logging condicional e logging em arquivo
+- Remove chamadas `siren(...)` automaticamente com `siren-clean`
+- Use `siren` em qualquer lugar sem importar via `siren-autoload`
 - Funciona em scripts, CLI, Django, Flask, FastAPI e mais
 - Saída colorida com emoji para facilitar a leitura
 
@@ -64,42 +58,65 @@ Siren usa `pprint` automaticamente para objetos complexos.
 
 ## Uso
 
-Importe e chame com um ou mais valores:
+Chame `siren(...)` com um ou mais valores. Ele retorna os valores sem alterá-los, então pode ser usado inline:
 
 ```python
 from siren import siren
 
 siren(x, data, user)
+resultado = siren(computar())  # ainda retorna o valor de computar()
 ```
 
-Também é possível adicionar um rótulo personalizado:
+**Rótulo (label)** — marque uma chamada para facilitar a leitura:
 
 ```python
 siren(value, label="ANTES DO SAVE")
 ```
 
----
-
-## Timer
-
-Ative a medição de tempo em uma chamada:
+**Timer** — meça o tempo de execução de uma chamada:
 
 ```python
 siren(x, timeit=True)
+# [🧜‍ SIREN core.py:10] x = 10
+# [🧜‍ SIREN TIME] 0.000123s
 ```
 
-Saída exemplo:
+**Modo silencioso** — suprime a saída sem remover a chamada:
 
-```text
-[🧜‍ SIREN core.py:10] x = 10
-[🧜‍ SIREN TIME] 0.000123s
+```python
+siren(x, quiet=True)      # só essa chamada, ainda retorna x
+siren.set_quiet(True)     # toda chamada, até set_quiet(False)
+```
+
+**Logging condicional** — só imprime quando uma condição é satisfeita:
+
+```python
+siren(x, if_equals=5)        # só se x == 5
+siren(items, if_len_gt=100)  # só se len(items) > 100
+siren(items, if_len_lt=5)    # só se len(items) < 5
+siren(result, if_true=True)  # só se result for verdadeiro
+siren(error, if_false=True)  # só se error for falso
+```
+
+**Logging em arquivo** — espelha a saída para um arquivo:
+
+```python
+siren.set_logfile("debug.log")
+siren(x)  # imprime no stdout E escreve em debug.log
+```
+
+**Verificar configuração**:
+
+```python
+config = siren.get_config()
+print(config)  # {"quiet": False, "logfile": None, "enabled": True}
 ```
 
 ---
 
 ## Trace de função
 
-Use o decorator para registrar chamadas, argumentos, retornos, tempo de execução e exceções:
+`@siren.trace` registra automaticamente as chamadas, argumentos, retorno, tempo de execução e exceções de uma função:
 
 ```python
 from siren import trace
@@ -111,21 +128,19 @@ def soma(a, b):
 soma(2, 3)
 ```
 
-Exemplo de saída:
-
 ```text
 [🧜‍ SIREN core.py:10] Calling soma(a=2, b=3)
 [🧜‍ SIREN core.py:11] Returned from soma -> 5 [int] (0.000123s)
 ```
 
-Opções de configuração:
+Opções de configuração (todas com padrão `True`):
 
-- `timeit=True` – Exibe tempo de execução (padrão: True)
-- `show_args=True` – Exibe argumentos (padrão: True)
-- `show_return=True` – Exibe retorno (padrão: True)
-- `show_type=True` – Exibe tipo do retorno entre colchetes (padrão: True)
-
-Exemplo com opções:
+| Opção | Efeito |
+|---|---|
+| `timeit` | Exibe tempo de execução |
+| `show_args` | Exibe argumentos da função |
+| `show_return` | Exibe valor de retorno |
+| `show_type` | Exibe tipo do retorno entre colchetes |
 
 ```python
 @siren.trace(timeit=True, show_args=False, show_type=False)
@@ -133,7 +148,7 @@ def multiplica(a, b):
     return a * b
 ```
 
-O decorator também captura e registra exceções:
+Exceções são registradas antes de serem relançadas, então `@siren.trace` nunca engole um erro:
 
 ```python
 @siren.trace
@@ -145,16 +160,42 @@ divide(5, 0)  # Registra exceção antes de lançar
 
 ---
 
+## Diff e breakpoint
+
+**`siren.diff`** compara dois dicts, listas, tuplas ou qualquer objeto comparável:
+
+```python
+before = {"name": "Alice", "age": 30}
+after = {"name": "Alice", "age": 31, "city": "NYC"}
+
+siren.diff(before, after)
+```
+
+```text
+[🧜‍ SIREN test.py:10] DIFF
+[🧜‍ SIREN test.py:11] [~] age: 30 → 31 (changed)
+[🧜‍ SIREN test.py:12] [+] city: NYC (new)
+```
+
+**`siren.breakpoint()`** pausa a execução e exibe as variáveis locais:
+
+```python
+x = 42
+data = {"items": [1, 2, 3]}
+
+siren.breakpoint()  # Pausa e exibe todos os locais
+# Pressione Ctrl+C para continuar, ou digite 'd' para entrar no pdb
+```
+
+---
+
 ## Limpeza de chamadas de debug
 
-O pacote instala o comando `siren-clean`.
-Execute-o na pasta do projeto para remover todas as chamadas `siren(...)` e imports relacionados:
+Execute `siren-clean` na pasta do projeto para remover todas as chamadas `siren(...)` e seus imports — comentários e literais de string são preservados:
 
 ```bash
 siren-clean
 ```
-
-Exemplo:
 
 Antes:
 
@@ -171,8 +212,6 @@ Depois:
 print("hello")
 ```
 
-O cleaner preserva comentários e literais de string.
-
 ---
 
 ## Autoload (sem import em cada arquivo)
@@ -181,132 +220,18 @@ Por padrão ainda é preciso `from siren import siren` em cada arquivo que usa a
 
 ```bash
 siren-autoload on
-```
-
-Isso escreve um arquivo `.pth` no `site-packages` do ambiente atual, injetando `siren` nos builtins do Python assim que qualquer interpretador inicia nesse ambiente — sem import em lugar nenhum, incluindo apps Django, views Flask, scripts ou o shell.
-
-```bash
 siren-autoload status   # verifica se está ativado
 siren-autoload off      # desativa novamente
 ```
 
-Como é opt-in por ambiente (nada muda só com o `pip install`), não afeta silenciosamente ambientes onde você não rodou o `on`.
+Isso escreve um arquivo `.pth` no `site-packages` do ambiente atual, injetando `siren` nos builtins do Python assim que qualquer interpretador inicia nesse ambiente — sem import em lugar nenhum, incluindo apps Django, views Flask, scripts ou o shell. Como é opt-in por ambiente, não afeta silenciosamente ambientes onde você não rodou o `on`.
 
 ---
 
-## Recursos Avançados
+## Exemplos com frameworks
 
-### Modo silencioso (silenciar output de chamadas específicas)
-
-```python
-from siren import siren
-
-siren(x, quiet=True)  # Não vai imprimir, mas retorna o valor
-```
-
-### Modo silencioso global
-
-```python
-from siren import siren
-
-siren.set_quiet(True)   # Desabilita todo output do siren
-siren.set_quiet(False)  # Habilita novamente
-```
-
-### Logging em arquivo
-
-```python
-from siren import siren
-
-siren.set_logfile("debug.log")
-siren(x)  # Imprime no stdout E escreve em debug.log
-```
-
-### Logging condicional
-
-Imprima apenas quando condições específicas são atendidas:
-
-```python
-from siren import siren
-
-# Só imprime se valor é igual
-siren(x, if_equals=5)
-
-# Só imprime se tamanho > N
-siren(items, if_len_gt=100)
-
-# Só imprime se tamanho < N
-siren(items, if_len_lt=5)
-
-# Só imprime se valor é verdadeiro
-siren(result, if_true=True)
-
-# Só imprime se valor é falso
-siren(error, if_false=True)
-```
-
-### Comparar objetos (Diff)
-
-Compare dois objetos e veja as diferenças:
-
-```python
-from siren import siren
-
-before = {"name": "Alice", "age": 30}
-after = {"name": "Alice", "age": 31, "city": "NYC"}
-
-siren.diff(before, after)
-```
-
-Saída:
-
-```text
-[🧜‍ SIREN test.py:10] DIFF
-[🧜‍ SIREN test.py:11] [~] age: 30 → 31 (changed)
-[🧜‍ SIREN test.py:12] [+] city: NYC (new)
-```
-
-Funciona com dicts, listas, tuplas e qualquer objeto comparável.
-
-### Breakpoint interativo
-
-Pausa a execução e inspeciona variáveis locais:
-
-```python
-from siren import siren
-
-x = 42
-data = {"items": [1, 2, 3]}
-
-siren.breakpoint()  # Pausa e exibe todos os locais
-# Pressione Ctrl+C para continuar
-# Digite 'd' para entrar no debugger (pdb)
-```
-
-Saída:
-
-```text
-[🧜‍ SIREN test.py:10] BREAKPOINT
-[🧜‍ SIREN test.py:11] === BREAKPOINT ===
-[🧜‍ SIREN test.py:12] Locals:
-[🧜‍ SIREN test.py:13]   x = 42
-[🧜‍ SIREN test.py:14]   data = {'items': [1, 2, 3]}
-```
-
-### Verificar configuração
-
-```python
-from siren import siren
-
-config = siren.get_config()
-print(config)  # {"quiet": False, "logfile": None, "enabled": True}
-```
-
----
-
-## Exemplos com Frameworks
-
-### Django
+<details>
+<summary>Django</summary>
 
 ```python
 from django.http import JsonResponse
@@ -315,14 +240,16 @@ from siren import siren
 def minha_view(request):
     dados_usuario = request.GET.dict()
     siren(dados_usuario, label="REQUEST_PARAMS")
-    
+
     resultado = processar_dados(dados_usuario)
     siren(resultado)
-    
+
     return JsonResponse(resultado)
 ```
+</details>
 
-### Flask
+<details>
+<summary>Flask</summary>
 
 ```python
 from flask import Flask, request
@@ -334,7 +261,7 @@ app = Flask(__name__)
 def listar_usuarios():
     query = request.args.get("q")
     siren(query, label="SEARCH_QUERY")
-    
+
     usuarios = buscar_usuarios(query)
     return {"usuarios": usuarios}
 
@@ -343,8 +270,10 @@ def buscar_usuarios(query):
     # Entrada/saída de função será registrada automaticamente
     return [{"id": 1, "nome": "Alice"}]
 ```
+</details>
 
-### FastAPI
+<details>
+<summary>FastAPI</summary>
 
 ```python
 from fastapi import FastAPI
@@ -355,7 +284,7 @@ app = FastAPI()
 @app.get("/items/{item_id}")
 async def obter_item(item_id: int, q: str = None):
     siren({"item_id": item_id, "q": q}, label="QUERY_PARAMS")
-    
+
     item = await buscar_item(item_id)
     return item
 
@@ -364,6 +293,7 @@ async def buscar_item(item_id: int):
     # Tempo de execução e argumentos serão registrados
     return {"id": item_id, "nome": "Item"}
 ```
+</details>
 
 ---
 
@@ -376,11 +306,9 @@ Imprimir valores para debugar é rápido, mas remover esses prints depois é tra
 ## Projeto
 
 - Nome do pacote: `siren-debug`
-- Versão Python: `>=3.6`
+- Versões Python: `2.7`, `3.6+`
 - Licença: MIT
 - PyPI: https://pypi.org/project/siren-debug/
-
----
 
 ## Licença
 
