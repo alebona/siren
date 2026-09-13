@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.5.0] - 2026-09-13
+
+### Added
+- Python 2.7 support alongside Python 3.6+ for the core features (`siren()`, `trace`, `diff`, `breakpoint`, `siren-clean`, `siren-autoload`). Package now ships as a universal wheel (`py2.py3-none-any`).
+- `siren-clean` now accepts a broader set of ignored directories (`.venv`, `doc`, `docs`, `.git`, `node_modules`, in addition to `venv`/`__pycache__`).
+
+### Fixed
+- `siren.set_logfile(...)` no longer silently fails to write on Python 2, and no longer corrupts non-ASCII output when it does write.
+- `siren-clean` no longer silently reads/writes source files as raw bytes on Python 2, which could corrupt files containing non-ASCII characters (e.g. accented comments).
+
+---
+
 ## [0.4.0] - 2026-07-15
 
 ### Added
