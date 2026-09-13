@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.0] - 2026-09-13
+
+### Added
+
+Completes the free-tier feature set from the project roadmap (see `ROADMAP.md`), turning siren from a debug-only helper into a broader local dev toolbelt. Every new tool ships with zero external dependencies and works on Python 2.7 and 3.6+.
+
+- `siren.memory(label=None, top=0)` — print current/peak traced memory usage (`tracemalloc`); prints a clear "not supported" message on Python 2, where `tracemalloc` doesn't exist.
+- `siren.catch(label=None)` — context manager that prints a colored, siren-formatted traceback on exception and re-raises it (never swallows errors).
+- `siren-scaffold` — generate small file/project skeletons: `script`, `package`, `class`, `dataclass` (plain-Python, no `dataclasses` module needed), `test`.
+- `siren-env diff` — compare `.env` against `.env.example` and report missing/extra keys; non-zero exit code on drift, so it can gate CI.
+- `siren-snippet` — save/show/list/remove small text snippets from the terminal (`~/.siren/snippets/`).
+- `siren-http` — a small httpie-like HTTP client (GET/POST/PUT/PATCH/DELETE, custom headers, JSON/raw body) built on `urllib` only, plus local, replayable request collections (`--save`, `replay`, `list`).
+- `siren-quality` — local code-quality helpers built on `ast`: `deadcode` (unused imports/module-level defs), `lint` (bare `except:`, leftover `pdb.set_trace()`/`breakpoint()`, TODO/FIXME comments), `complexity` (cyclomatic complexity per function).
+
+---
+
 ## [0.5.0] - 2026-09-13
 
 ### Added

@@ -47,10 +47,13 @@ Siren automatically uses `pprint` for complex objects, and picks up the file/lin
 - Zero external dependencies
 - Prints values with file and line number
 - Uses `pprint` automatically for complex data
-- Function tracing with `@siren.trace`, object diffing with `siren.diff`, and an interactive `siren.breakpoint()`
+- Function tracing with `@siren.trace`, object diffing with `siren.diff`, an interactive `siren.breakpoint()`, memory snapshots with `siren.memory()`, and colored traceback capture with `siren.catch`
 - Quiet mode, conditional logging, and file logging
 - Removes `siren(...)` calls automatically with `siren-clean`
 - Use `siren` anywhere without importing it via `siren-autoload`
+- Project/file scaffolding with `siren-scaffold`, `.env` drift checks with `siren-env`
+- Terminal snippet manager (`siren-snippet`) and a dependency-free HTTP client (`siren-http`)
+- Local code-quality checks with `siren-quality` (dead code, lint, cyclomatic complexity)
 - Works in scripts, CLI tools, Django, Flask, FastAPI, and more
 - Colored output with emoji for easy visual scanning
 
@@ -160,7 +163,7 @@ divide(5, 0)  # Logs exception before raising
 
 ---
 
-## Diff and breakpoint
+## Diff, breakpoint, memory, and catch
 
 **`siren.diff`** compares two dicts, lists, tuples, or any comparable objects:
 
@@ -185,6 +188,20 @@ data = {"items": [1, 2, 3]}
 
 siren.breakpoint()  # Pauses and displays all locals
 # Press Ctrl+C to continue, or type 'd' to drop into pdb
+```
+
+**`siren.memory()`** prints current/peak traced memory usage (requires Python 3.4+; prints a clear message instead of failing on Python 2):
+
+```python
+siren.memory()          # [🧜‍ SIREN MEMORY ...] current=1.2MB peak=1.5MB
+siren.memory(top=5)     # also print the top 5 allocation sites
+```
+
+**`siren.catch`** is a context manager that prints a colored traceback on exception and re-raises it — it never swallows errors:
+
+```python
+with siren.catch():
+    risky_call()
 ```
 
 ---
@@ -225,6 +242,70 @@ siren-autoload off      # disable again
 ```
 
 This writes a `.pth` file into the current environment's `site-packages`, injecting `siren` into Python's builtins as soon as any interpreter starts in that environment — no import needed anywhere, including in Django apps, Flask views, scripts, or the shell. It's opt-in per environment, so it won't silently affect environments where you didn't run `on`.
+
+---
+
+## Beyond debugging
+
+Siren also ships a handful of small, dependency-free CLI tools for everyday project work.
+
+### Scaffolding — `siren-scaffold`
+
+Generate a small file or project skeleton:
+
+```bash
+siren-scaffold script my_tool       # a single script with a main() guard
+siren-scaffold package my_package   # a package dir with __init__.py, core.py, and tests/
+siren-scaffold class Widget         # a plain class
+siren-scaffold dataclass Point      # a plain-Python value object (no dataclasses module needed)
+siren-scaffold test Widget          # a unittest.TestCase stub
+```
+
+It refuses to overwrite existing files.
+
+### `.env` drift check — `siren-env`
+
+```bash
+siren-env diff                                    # compares .env.example against .env
+siren-env diff --example .env.sample --env .env.local
+```
+
+Reports keys present in one file but missing from the other, and exits non-zero on drift — usable as a CI check.
+
+### Snippets — `siren-snippet`
+
+```bash
+echo "print('hello')" | siren-snippet save greet
+siren-snippet show greet
+siren-snippet list
+siren-snippet remove greet
+```
+
+Snippets are stored as plain text files under `~/.siren/snippets/`.
+
+### HTTP client — `siren-http`
+
+A tiny httpie-like client built on `urllib` only:
+
+```bash
+siren-http GET https://api.example.com/items
+siren-http POST https://api.example.com/items --json '{"name": "x"}' -H "Authorization: Bearer TOKEN"
+siren-http GET https://api.example.com/items --save my-request   # save it as a local collection
+siren-http replay my-request                                     # resend a saved request
+siren-http list                                                  # list saved requests
+```
+
+### Code quality — `siren-quality`
+
+Local checks built on the stdlib `ast` module (no pyflakes/radon/etc dependency):
+
+```bash
+siren-quality deadcode .     # unused imports and module-level defs never referenced in the same file
+siren-quality lint .         # bare `except:`, leftover pdb.set_trace()/breakpoint(), TODO/FIXME comments
+siren-quality complexity .   # cyclomatic complexity per function, flags anything above --threshold (default 10)
+```
+
+`deadcode` is a same-file heuristic — it can't see usage from other files, so treat its findings as candidates to double-check, not certainties.
 
 ---
 

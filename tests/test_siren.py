@@ -353,6 +353,81 @@ class TestSirenCore(unittest.TestCase):
         self.assertIn("[+]", output)
         self.assertIn("4", output)
 
+    def test_memory_prints_current_and_peak(self):
+        captured = io.StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured
+
+        try:
+            core.memory()
+            output = captured.getvalue()
+        finally:
+            sys.stdout = original_stdout
+
+        self.assertIn("current=", output)
+        self.assertIn("peak=", output)
+
+    def test_memory_top_allocations(self):
+        captured = io.StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured
+
+        try:
+            leftover = [str(i) for i in range(1000)]  # noqa: F841
+            core.memory(top=3)
+            output = captured.getvalue()
+        finally:
+            sys.stdout = original_stdout
+
+        lines = [line for line in output.splitlines() if "current=" not in line]
+        self.assertGreater(len(lines), 0)
+
+    def test_memory_degrades_gracefully_without_tracemalloc(self):
+        # tracemalloc doesn't exist on Python 2; core.py sets core.tracemalloc
+        # to None in that case instead of failing the whole module import.
+        captured = io.StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured
+
+        try:
+            with mock.patch.object(core, "tracemalloc", None):
+                core.memory()
+            output = captured.getvalue()
+        finally:
+            sys.stdout = original_stdout
+
+        self.assertIn("requires Python 3.4+", output)
+
+    def test_catch_prints_traceback_and_reraises(self):
+        captured = io.StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured
+
+        try:
+            with self.assertRaises(ValueError):
+                with core.catch():
+                    raise ValueError("boom")
+            output = captured.getvalue()
+        finally:
+            sys.stdout = original_stdout
+
+        self.assertIn("ValueError", output)
+        self.assertIn("boom", output)
+
+    def test_catch_is_silent_when_no_exception(self):
+        captured = io.StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured
+
+        try:
+            with core.catch():
+                pass
+            output = captured.getvalue()
+        finally:
+            sys.stdout = original_stdout
+
+        self.assertEqual(output, "")
+
 
 if __name__ == "__main__":
     unittest.main()

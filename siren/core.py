@@ -10,7 +10,13 @@ import sys
 import time
 import os
 import tokenize
+import traceback
 from datetime import datetime
+
+try:
+    import tracemalloc  # Python 3.4+ only
+except ImportError:  # Python 2
+    tracemalloc = None
 
 from ._output import safe_print
 
@@ -579,6 +585,77 @@ def breakpoint_debug():
     _print_output("{} {}Continuing execution...{}".format(prefix, COLOR, RESET))
 
 
+def _format_bytes(num_bytes):
+    value = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if value < 1024.0:
+            return "{:.1f}{}".format(value, unit)
+        value /= 1024.0
+    return "{:.1f}TB".format(value)
+
+
+def memory(label=None, top=0):
+    """
+    Print current/peak traced memory usage.
+
+    Usage:
+        siren.memory()
+        siren.memory(top=5)  # also show the top 5 allocation sites
+    """
+    frame = inspect.currentframe().f_back
+    prefix = _prefix(frame, label or "MEMORY")
+
+    if tracemalloc is None:
+        _print_output("{} {}memory() requires Python 3.4+ (tracemalloc unavailable){}".format(prefix, COLOR, RESET))
+        return
+
+    if not tracemalloc.is_tracing():
+        tracemalloc.start()
+
+    current, peak = tracemalloc.get_traced_memory()
+    _print_output("{} {}current={} peak={}{}".format(
+        prefix, COLOR, _format_bytes(current), _format_bytes(peak), RESET
+    ))
+
+    if top > 0:
+        snapshot = tracemalloc.take_snapshot()
+        for stat in snapshot.statistics("lineno")[:top]:
+            _print_output("{} {}  {}{}".format(prefix, COLOR, stat, RESET))
+
+
+class _CatchContext(object):
+    def __init__(self, label=None):
+        self.label = label
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if exc_type is None:
+            return False
+
+        frame = inspect.currentframe().f_back
+        prefix = _prefix(frame, self.label or "EXCEPTION")
+
+        formatted = traceback.format_exception(exc_type, exc_value, exc_tb)
+        for line in "".join(formatted).rstrip("\n").split("\n"):
+            _print_output("{} {}{}{}".format(prefix, COLOR, line, RESET))
+
+        return False  # never suppress the exception
+
+
+def catch(label=None):
+    """
+    Context manager that prints a siren-formatted traceback on exception,
+    then re-raises it (never swallows errors).
+
+    Usage:
+        with siren.catch():
+            risky_call()
+    """
+    return _CatchContext(label)
+
+
 siren.trace = trace
 siren.set_quiet = set_quiet
 siren.set_logfile = set_logfile
@@ -587,3 +664,5 @@ siren.get_config = get_config
 siren.diff = diff
 siren.breakpoint = breakpoint_debug
 siren.info = info
+siren.memory = memory
+siren.catch = catch

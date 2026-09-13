@@ -52,15 +52,15 @@ Critério de corte: **local roda sem conta → grátis; qualquer coisa que depen
 de servidor/conta (sync, dashboard, compartilhamento) → pago.** Toda área tem
 pelo menos uma feature grátis como porta de entrada.
 
-### 🐞 Debug & Profiling
+### 🐞 Debug & Profiling — free ✅ concluído (v0.6.0)
 
 **Grátis (local)**
-- `siren()` print/pprint com contexto de arquivo/linha *(já existe)*
-- `@siren.trace`, `timeit=True`, `siren.diff`, `siren.breakpoint` *(já existe)*
-- Logging condicional (`if_equals`, `if_len_gt`, etc.), quiet mode, logfile local *(já existe)*
-- `siren-clean`, `siren-autoload` *(já existe)*
-- Snapshot de memória básico (wrapper local sobre `tracemalloc`)
-- Formatação bonita de traceback de exceções (local)
+- ✅ `siren()` print/pprint com contexto de arquivo/linha
+- ✅ `@siren.trace`, `timeit=True`, `siren.diff`, `siren.breakpoint`
+- ✅ Logging condicional (`if_equals`, `if_len_gt`, etc.), quiet mode, logfile local
+- ✅ `siren-clean`, `siren-autoload`
+- ✅ Snapshot de memória (`siren.memory()`, wrapper sobre `tracemalloc`; degrada com aviso no Python 2, onde `tracemalloc` não existe)
+- ✅ Formatação bonita de traceback de exceções (`siren.catch`, context manager)
 
 **Pago (nuvem)**
 - Upload de sessões de debug pra um dashboard web com histórico pesquisável
@@ -68,37 +68,37 @@ pelo menos uma feature grátis como porta de entrada.
 - Log estruturado centralizado, pesquisável, com retenção configurável
 - Compartilhar uma sessão de debug via link com o time
 
-### 🛠️ Produtividade de CLI/projeto
+### 🛠️ Produtividade de CLI/projeto — free ✅ concluído (v0.6.0)
 
 **Grátis (local)**
-- Scaffolding de projeto com templates locais embutidos (script, pacote, CLI)
-- Gerenciador de `.env` local (validar, diff entre `.env.example` e `.env`)
-- Snippets locais (salvar/inserir blocos de código)
-- Geração de boilerplate (classe, teste, dataclass) via CLI
+- ✅ Scaffolding com templates locais embutidos (`siren-scaffold`: script, package, class, dataclass, test)
+- ✅ Gerenciador de `.env` local (`siren-env diff` — valida/compara `.env.example` e `.env`)
+- ✅ Snippets locais (`siren-snippet`: save/show/list/remove)
+- ✅ Geração de boilerplate (classe, teste, dataclass) — consolidado dentro do próprio `siren-scaffold`
 
 **Pago (nuvem)**
 - Templates de time compartilhados via conta (sync entre devs)
 - Sync de configs/snippets entre máquinas
 - Histórico de scaffolds gerados por projeto/equipe
 
-### 🌐 Integração com API/HTTP
+### 🌐 Integração com API/HTTP — free ✅ concluído (v0.6.0, com 1 item adiado)
 
 **Grátis (local)**
-- Cliente HTTP embutido tipo httpie (`siren http GET url`)
-- Inspeção/log de requests feitas por `requests`/`httpx` via patch local
-- "Collections" de requests salvas em arquivo local (JSON/YAML)
+- ✅ Cliente HTTP embutido tipo httpie (`siren-http GET/POST/PUT/PATCH/DELETE`)
+- ✅ "Collections" de requests salvas em arquivo local (JSON, via `--save`/`replay`/`list`)
+- ⏸️ Adiado: inspeção/log automático de requests feitas por `requests`/`httpx` via patch — decisão explícita de escopo em 2026-09-13 (ver "Contexto da decisão" abaixo); pode entrar depois
 
 **Pago (nuvem)**
 - Mock server hospedado com URL pública
 - Collections compartilhadas de equipe (sync via conta)
 - Histórico de chamadas de API na nuvem com replay
 
-### ✅ Qualidade de código
+### ✅ Qualidade de código — free ✅ concluído (v0.6.0)
 
 **Grátis (local)**
-- Detecção de código morto via `ast` (funções/imports não usados)
-- Lint helpers simples (prints esquecidos, TODOs, etc.)
-- Complexidade ciclomática por arquivo
+- ✅ Detecção de código morto via `ast` (`siren-quality deadcode` — imports e defs de módulo não usados; heurística restrita ao próprio arquivo)
+- ✅ Lint helpers simples (`siren-quality lint` — `except:` genérico, `pdb.set_trace()`/`breakpoint()` esquecidos, TODOs/FIXMEs)
+- ✅ Complexidade ciclomática (`siren-quality complexity` — por função, não por arquivo como rascunhado originalmente)
 
 **Pago (nuvem)**
 - Dashboard de qualidade agregado com tendência histórica
@@ -142,3 +142,17 @@ pelo menos uma feature grátis como porta de entrada.
   integração com APIs/HTTP, qualidade de código — todas as quatro áreas estão
   na mesa, mas devem ser faseadas (ver riscos acima).
 - **Horizonte atual**: só planejamento, sem implementação ainda.
+
+### Atualização 2026-09-13 — free tier implementado
+
+Todas as 4 áreas tiveram seu lado grátis implementado em `v0.6.0`, numa
+tacada só (decisão do usuário: "tudo de uma vez" em vez de fasear). Decisões
+tomadas durante a implementação:
+- HTTP: só cliente CLI + collections locais; o patch automático de
+  `requests`/`httpx` para logging ficou de fora por decisão explícita, pode
+  virar um item futuro.
+- Vários bullets do roadmap foram consolidados em menos comandos do que o
+  rascunho original sugeria (ex: scaffolding + boilerplate viraram um único
+  `siren-scaffold`; deadcode + lint + complexity viraram um único
+  `siren-quality` com subcomandos) — ver `CHANGELOG.md` 0.6.0 para a lista
+  final de comandos.
