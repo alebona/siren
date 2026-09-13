@@ -1,4 +1,8 @@
-import builtins
+try:
+    import builtins
+except ImportError:  # Python 2
+    import __builtin__ as builtins
+
 from .core import siren, trace, info, set_quiet, set_logfile, set_enabled, get_config, diff, breakpoint_debug
 
 __all__ = ["siren", "trace", "info", "set_quiet", "set_logfile", "set_enabled", "get_config", "diff", "breakpoint_debug"]

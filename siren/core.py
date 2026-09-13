@@ -6,12 +6,27 @@ import pprint
 import inspect
 import linecache
 import re
+import sys
 import time
 import os
 import tokenize
 from datetime import datetime
 
 from ._output import safe_print
+
+try:
+    text_type = unicode  # Python 2
+except NameError:
+    text_type = str  # Python 3
+
+try:
+    _read_input = raw_input  # Python 2
+except NameError:
+    _read_input = input  # Python 3
+
+# time.perf_counter() doesn't exist on Python 2; time.time() is lower
+# resolution but good enough for a debug timer.
+_perf_counter = getattr(time, "perf_counter", time.time)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 COLOR = "\033[38;2;255;105;180m"
@@ -66,10 +81,24 @@ def _print_output(text):
 
     if _SIREN_CONFIG["logfile"]:
         try:
-            with open(_SIREN_CONFIG["logfile"], "a", encoding="utf-8") as f:
-                f.write(text + "\n")
+            payload = text + "\n"
+            if not isinstance(payload, text_type):
+                payload = payload.decode("utf-8")
+            with io.open(_SIREN_CONFIG["logfile"], "a", encoding="utf-8") as f:
+                f.write(payload)
         except Exception:
             pass  # Silently fail on log write errors
+
+
+def _ensure_text(value):
+    """Decode byte strings to text so tokenize/io.StringIO work on Python 2,
+    where source read from disk isn't decoded automatically."""
+    if isinstance(value, text_type):
+        return value
+    try:
+        return value.decode("utf-8")
+    except UnicodeDecodeError:
+        return value.decode("utf-8", errors="replace")
 
 
 def _get_call_source(frame):
@@ -128,7 +157,7 @@ def _extract_args(frame):
         if saw_call and paren_depth <= 0:
             break
 
-    source = "".join(source_lines)
+    source = _ensure_text("".join(source_lines))
 
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
@@ -330,23 +359,30 @@ def _format_value_for_trace(value, max_len=80):
 
 def _format_trace_args(func, args, kwargs):
     try:
-        signature = inspect.signature(func)
-        bound = signature.bind_partial(*args, **kwargs)
-        bound.apply_defaults()
+        if hasattr(inspect, "signature"):
+            signature = inspect.signature(func)
+            bound = signature.bind_partial(*args, **kwargs)
+            bound.apply_defaults()
+            arguments = bound.arguments.items()
+        else:
+            # Python 2 has no inspect.signature; getcallargs is the closest
+            # equivalent for binding args/kwargs to parameter names.
+            arguments = inspect.getcallargs(func, *args, **kwargs).items()
+
         parts = []
 
-        for name, value in bound.arguments.items():
+        for name, value in arguments:
             formatted = _format_value_for_trace(value, max_len=60)
-            parts.append(f"{name}={formatted}")
+            parts.append("{}={}".format(name, formatted))
 
         return ", ".join(parts)
     except (TypeError, ValueError):
         parts = [repr(value) for value in args]
-        parts += [f"{name}={repr(value)}" for name, value in kwargs.items()]
+        parts += ["{}={}".format(name, repr(value)) for name, value in kwargs.items()]
         return ", ".join(parts)
 
 
-def trace(func=None, *, timeit=True, show_args=True, show_return=True, show_type=True):
+def trace(func=None, **options):
     """
     Decorator to display function entry and exit automatically.
 
@@ -358,6 +394,10 @@ def trace(func=None, *, timeit=True, show_args=True, show_return=True, show_type
     Optional configuration:
         @siren.trace(timeit=True, show_args=False, show_type=True)
     """
+    timeit = options.get("timeit", True)
+    show_args = options.get("show_args", True)
+    show_return = options.get("show_return", True)
+    show_type = options.get("show_type", True)
 
     def decorator(target):
         def wrapper(*args, **kwargs):
@@ -368,7 +408,7 @@ def trace(func=None, *, timeit=True, show_args=True, show_return=True, show_type
             else:
                 call_label += "()"
 
-            start = time.perf_counter() if timeit else None
+            start = _perf_counter() if timeit else None
             siren.info(call_label)
 
             result = None
@@ -379,18 +419,18 @@ def trace(func=None, *, timeit=True, show_args=True, show_return=True, show_type
                 exception_occurred = True
                 exc_type = type(e).__name__
                 exc_msg = str(e)
-                siren.info(f"Exception in {target.__name__} -> {exc_type}: {exc_msg}")
+                siren.info("Exception in {} -> {}: {}".format(target.__name__, exc_type, exc_msg))
                 raise
             finally:
                 if not exception_occurred:
                     elapsed_text = ""
                     if timeit:
-                        elapsed = time.perf_counter() - start
+                        elapsed = _perf_counter() - start
                         elapsed_text = " ({:.6f}s)".format(elapsed)
 
                     if show_return and result is not None:
                         result_text = _format_value_for_trace(result, max_len=100)
-                        type_text = f" [{type(result).__name__}]" if show_type else ""
+                        type_text = " [{}]".format(type(result).__name__) if show_type else ""
                         siren.info(
                             "Returned from {} -> {}{}{}".format(
                                 target.__name__, result_text, type_text, elapsed_text
@@ -453,7 +493,9 @@ def diff(obj1, obj2, label="DIFF"):
     prefix = _prefix(frame, label)
 
     if type(obj1) != type(obj2):
-        _print_output(f"{prefix} {COLOR}Type mismatch: {type(obj1).__name__} vs {type(obj2).__name__}{RESET}")
+        _print_output("{} {}Type mismatch: {} vs {}{}".format(
+            prefix, COLOR, type(obj1).__name__, type(obj2).__name__, RESET
+        ))
         return
 
     if isinstance(obj1, dict) and isinstance(obj2, dict):
@@ -461,12 +503,18 @@ def diff(obj1, obj2, label="DIFF"):
 
         for key in sorted(all_keys):
             if key not in obj1:
-                _print_output(f"{prefix} {COLOR}[+] {key}: {pprint.pformat(obj2[key])} (new){RESET}")
+                _print_output("{} {}[+] {}: {} (new){}".format(
+                    prefix, COLOR, key, pprint.pformat(obj2[key]), RESET
+                ))
             elif key not in obj2:
-                _print_output(f"{prefix} {COLOR}[-] {key}: {pprint.pformat(obj1[key])} (removed){RESET}")
+                _print_output("{} {}[-] {}: {} (removed){}".format(
+                    prefix, COLOR, key, pprint.pformat(obj1[key]), RESET
+                ))
             elif obj1[key] != obj2[key]:
                 _print_output(
-                    f"{prefix} {COLOR}[~] {key}: {pprint.pformat(obj1[key])} → {pprint.pformat(obj2[key])} (changed){RESET}"
+                    "{} {}[~] {}: {} → {} (changed){}".format(
+                        prefix, COLOR, key, pprint.pformat(obj1[key]), pprint.pformat(obj2[key]), RESET
+                    )
                 )
 
     elif isinstance(obj1, (list, tuple)) and isinstance(obj2, (list, tuple)):
@@ -474,20 +522,26 @@ def diff(obj1, obj2, label="DIFF"):
 
         for i in range(max_len):
             if i >= len(obj1):
-                _print_output(f"{prefix} {COLOR}[+] [{i}]: {pprint.pformat(obj2[i])} (new){RESET}")
+                _print_output("{} {}[+] [{}]: {} (new){}".format(
+                    prefix, COLOR, i, pprint.pformat(obj2[i]), RESET
+                ))
             elif i >= len(obj2):
-                _print_output(f"{prefix} {COLOR}[-] [{i}]: {pprint.pformat(obj1[i])} (removed){RESET}")
+                _print_output("{} {}[-] [{}]: {} (removed){}".format(
+                    prefix, COLOR, i, pprint.pformat(obj1[i]), RESET
+                ))
             elif obj1[i] != obj2[i]:
                 _print_output(
-                    f"{prefix} {COLOR}[~] [{i}]: {pprint.pformat(obj1[i])} → {pprint.pformat(obj2[i])} (changed){RESET}"
+                    "{} {}[~] [{}]: {} → {} (changed){}".format(
+                        prefix, COLOR, i, pprint.pformat(obj1[i]), pprint.pformat(obj2[i]), RESET
+                    )
                 )
 
     else:
         if obj1 == obj2:
-            _print_output(f"{prefix} {COLOR}No differences{RESET}")
+            _print_output("{} {}No differences{}".format(prefix, COLOR, RESET))
         else:
-            _print_output(f"{prefix} {COLOR}Before: {pprint.pformat(obj1)}{RESET}")
-            _print_output(f"{prefix} {COLOR}After: {pprint.pformat(obj2)}{RESET}")
+            _print_output("{} {}Before: {}{}".format(prefix, COLOR, pprint.pformat(obj1), RESET))
+            _print_output("{} {}After: {}{}".format(prefix, COLOR, pprint.pformat(obj2), RESET))
 
 
 def breakpoint_debug():
@@ -503,27 +557,26 @@ def breakpoint_debug():
     prefix = _prefix(frame, "BREAKPOINT")
 
     local_vars = frame.f_locals
-    _print_output(f"{prefix} {COLOR}=== BREAKPOINT ==={RESET}")
-    _print_output(f"{prefix} {COLOR}Locals:{RESET}")
+    _print_output("{} {}=== BREAKPOINT ==={}".format(prefix, COLOR, RESET))
+    _print_output("{} {}Locals:{}".format(prefix, COLOR, RESET))
 
     for name, value in sorted(local_vars.items()):
         if not name.startswith("_"):
             formatted = _format_value_for_trace(value, max_len=80)
-            _print_output(f"{prefix} {COLOR}  {name} = {formatted}{RESET}")
+            _print_output("{} {}  {} = {}{}".format(prefix, COLOR, name, formatted, RESET))
 
-    _print_output(f"{prefix} {COLOR}Press Ctrl+C to continue or 'd' for debugger...{RESET}")
+    _print_output("{} {}Press Ctrl+C to continue or 'd' for debugger...{}".format(prefix, COLOR, RESET))
 
     try:
-        import sys
         if sys.stdin.isatty():
-            response = input(">>> ").strip()
+            response = _read_input(">>> ").strip()
             if response.lower() == "d":
                 import pdb
                 pdb.set_trace()
     except (EOFError, KeyboardInterrupt):
         pass
 
-    _print_output(f"{prefix} {COLOR}Continuing execution...{RESET}")
+    _print_output("{} {}Continuing execution...{}".format(prefix, COLOR, RESET))
 
 
 siren.trace = trace

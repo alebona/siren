@@ -11,6 +11,7 @@ Usage:
 """
 from __future__ import print_function
 
+import io
 import os
 import sys
 import sysconfig
@@ -33,7 +34,7 @@ def _pth_path():
 
 def enable():
     path = _pth_path()
-    with open(path, "w", encoding="utf-8") as f:
+    with io.open(path, "w", encoding="utf-8") as f:
         f.write(PTH_CONTENT)
     return path
 

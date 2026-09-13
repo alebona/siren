@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import tokenize
+import traceback
 from datetime import datetime
 
 from ._output import safe_print
@@ -18,6 +19,16 @@ IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren(?:\s+as\s+\w+)?\s*(?:
 COLOR = "\033[38;2;255;105;180m"
 RESET = "\033[0m"
 EMOJI = "🧜‍"
+
+IGNORE_DIRS = {
+    "venv",
+    ".venv",
+    "__pycache__",
+    "doc",
+    "docs",
+    ".git",
+    "node_modules",
+}
 
 
 def _format_timestamp():
@@ -103,19 +114,25 @@ def _collect_siren_lines(source):
     return marked
 
 
-def clean_file(path):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            source = f.read()
-    except TypeError:
-        with open(path, "r") as f:
-            source = f.read()
+def clean_file(path, dry_run=False):
+    # io.open decodes/encodes explicitly on both Python 2 and 3, unlike the
+    # builtin open() which doesn't accept encoding= on Python 2.
+    with io.open(path, "r", encoding="utf-8") as f:
+        source = f.read()
 
     lines = source.splitlines(keepends=True)
-    marked = _collect_siren_lines(source)
+
+    try:
+        marked = _collect_siren_lines(source)
+    except Exception as e:
+        raise type(e)("{}\nArquivo: {}".format(e, path))
 
     if not marked:
         return 0
+
+    if dry_run:
+        safe_print("✓ {} ({} linhas)".format(path, len(marked)))
+        return len(marked)
 
     new_lines = [line for lineno, line in enumerate(lines, start=1) if lineno not in marked]
     new_source = "".join(new_lines)
@@ -127,12 +144,8 @@ def clean_file(path):
         # block). Leave the file untouched rather than corrupting it.
         return 0
 
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(new_source)
-    except TypeError:
-        with open(path, "w") as f:
-            f.write(new_source)
+    with io.open(path, "w", encoding="utf-8") as f:
+        f.write(new_source)
 
     return len(marked)
 
@@ -141,13 +154,8 @@ def clean_directory(root):
     total_removed = 0
 
     for base, dirs, files in os.walk(root):
-
-        # ignorar venv automaticamente
-        if "venv" in base.lower():
-            continue
-
-        if "__pycache__" in base:
-            continue
+        # Impede o os.walk de entrar nesses diretórios
+        dirs[:] = [d for d in dirs if d.lower() not in IGNORE_DIRS]
 
         for name in files:
             if name.endswith(".py"):
@@ -158,18 +166,22 @@ def clean_directory(root):
 
 
 def main():
-    target = sys.argv[1] if len(sys.argv) > 1 else "."
-    removed = clean_directory(target)
-    safe_print(
-        "{}[{} SIREN CLEAN {}] {}{} linhas removidas{}".format(
-            COLOR,
-            EMOJI,
-            _format_timestamp(),
-            COLOR,
-            removed,
-            RESET,
+    try:
+        target = sys.argv[1] if len(sys.argv) > 1 else "."
+        removed = clean_directory(target)
+        safe_print(
+            "{}[{} SIREN CLEAN {}] {}{} linhas removidas{}".format(
+                COLOR,
+                EMOJI,
+                _format_timestamp(),
+                COLOR,
+                removed,
+                RESET,
+            )
         )
-    )
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
