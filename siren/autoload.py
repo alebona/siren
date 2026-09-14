@@ -18,6 +18,11 @@ import sysconfig
 
 from ._output import safe_print
 
+try:
+    text_type = unicode  # Python 2
+except NameError:
+    text_type = str  # Python 3
+
 PTH_FILENAME = "siren-autoload.pth"
 PTH_CONTENT = (
     'import sys; exec("try:\\n    import siren\\nexcept Exception:\\n    pass")\n'
@@ -34,8 +39,11 @@ def _pth_path():
 
 def enable():
     path = _pth_path()
+    content = PTH_CONTENT
+    if not isinstance(content, text_type):
+        content = content.decode("utf-8")
     with io.open(path, "w", encoding="utf-8") as f:
-        f.write(PTH_CONTENT)
+        f.write(content)
     return path
 
 

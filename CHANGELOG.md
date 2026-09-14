@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.1] - 2026-09-14
+
+### Fixed
+- `siren-autoload on` crashed on Python 2.7 with `TypeError: write() argument 1 must be unicode, not str`. The same class of bug (writing a plain `str` through `io.open(..., encoding="utf-8")`, which requires `unicode` on Python 2) also affected `siren-scaffold` (all templates) and the credential/collection files written by the in-progress pro-tier CLI (`siren-login`, `siren-http --save`). All four now decode to `unicode` first, matching the pattern already used safely in `core.py` and `siren-snippet`.
+
+---
+
 ## [0.6.0] - 2026-09-13
 
 ### Added

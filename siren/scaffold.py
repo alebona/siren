@@ -19,6 +19,11 @@ import sys
 from ._cli import banner
 from ._output import safe_print
 
+try:
+    text_type = unicode  # Python 2
+except NameError:
+    text_type = str  # Python 3
+
 SCRIPT_TEMPLATE = '''# -*- coding: utf-8 -*-
 """{name}"""
 
@@ -98,6 +103,8 @@ def _class_name(name):
 def _write(path, content):
     if os.path.exists(path):
         raise IOError("Refusing to overwrite existing file: {}".format(path))
+    if not isinstance(content, text_type):
+        content = content.decode("utf-8")
     with io.open(path, "w", encoding="utf-8") as f:
         f.write(content)
     return path

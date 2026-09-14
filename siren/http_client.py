@@ -27,6 +27,11 @@ except ImportError:  # Python 2
 from ._cli import banner
 from ._output import safe_print
 
+try:
+    text_type = unicode  # Python 2
+except NameError:
+    text_type = str  # Python 3
+
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 
 
@@ -103,8 +108,11 @@ def save_collection(name, method, url, headers=None, json_body=None, data=None):
         "json": json_body,
         "data": data,
     }
+    content = json.dumps(payload, indent=2)
+    if not isinstance(content, text_type):
+        content = content.decode("utf-8")
     with io.open(_collection_path(name), "w", encoding="utf-8") as f:
-        f.write(json.dumps(payload, indent=2))
+        f.write(content)
 
 
 def load_collection(name):
