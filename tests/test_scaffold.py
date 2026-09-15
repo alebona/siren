@@ -52,6 +52,22 @@ class TestScaffold(unittest.TestCase):
             content = f.read()
         self.assertIn("class TestWidget(unittest.TestCase):", content)
 
+    def test_class_name_preserves_existing_camel_case(self):
+        # Regression: str.capitalize() also lowercases the rest of the
+        # string, mangling "IssoEhUmaClasse" into "Issoehumaclasse".
+        self.assertEqual(scaffold._class_name("IssoEhUmaClasse"), "IssoEhUmaClasse")
+
+    def test_class_name_capitalizes_snake_and_kebab_case(self):
+        self.assertEqual(scaffold._class_name("my_widget"), "MyWidget")
+        self.assertEqual(scaffold._class_name("my-widget"), "MyWidget")
+
+    def test_class_template_preserves_camel_case_name(self):
+        created = scaffold.generate("class", "IssoEhUmaClasse", self.tmpdir)
+        self._compile_all(created)
+        with open(created[0], encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("class IssoEhUmaClasse(object):", content)
+
     def test_refuses_to_overwrite_existing_file(self):
         scaffold.generate("script", "dup", self.tmpdir)
         with self.assertRaises(IOError):

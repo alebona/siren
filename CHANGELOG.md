@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.3] - 2026-09-15
+
+### Fixed
+- `siren-scaffold class`/`dataclass`/`test` mangled an already-cased class name: `IssoEhUmaClasse` became `Issoehumaclasse`, because `_class_name()` used `str.capitalize()`, which also lowercases everything after the first letter. Now only the first letter of each `-`/`_`-separated part is capitalized, preserving any camelCase/PascalCase already present in the name you typed.
+
+---
+
 ## [0.6.2] - 2026-09-15
 
 ### Fixed

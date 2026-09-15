@@ -96,8 +96,11 @@ if __name__ == "__main__":
 
 
 def _class_name(name):
+    # Capitalize only the first letter of each part - str.capitalize()
+    # also *lowercases* the rest, which mangles an already-cased name
+    # like "IssoEhUmaClasse" into "Issoehumaclasse".
     parts = name.replace("-", "_").split("_")
-    return "".join(part.capitalize() for part in parts if part)
+    return "".join(part[0].upper() + part[1:] for part in parts if part)
 
 
 def _write(path, content):
