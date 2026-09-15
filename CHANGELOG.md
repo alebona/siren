@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.2] - 2026-09-15
+
+### Fixed
+- `siren-quality` (`deadcode`, `lint`, `complexity`) never actually parsed any file on Python 2.7: `ast.parse()`/`compile()` on Python 2 raises `SyntaxError: encoding declaration in Unicode string` when given an already-decoded unicode string that still contains a `# -*- coding: utf-8 -*-` line, which every file in this project (and most real Python 2 codebases) has. Every file silently failed to parse, and `deadcode`/`lint` then printed "no issues found" as if analysis had actually happened - a false-clean report. `complexity` had the same parse failure but no misleading message, so it just went silent. Source is now re-encoded to bytes before parsing, letting the parser detect the encoding itself (Python 3 behavior is unchanged - it already accepted this fine). All three commands also now report any file that still fails to parse and exit non-zero instead of staying quiet about it.
+
+---
+
 ## [0.6.1] - 2026-09-14
 
 ### Fixed

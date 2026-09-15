@@ -20,6 +20,11 @@ import tokenize
 from ._cli import banner
 from ._output import safe_print
 
+try:
+    text_type = unicode  # Python 2
+except NameError:
+    text_type = str  # Python 3
+
 IGNORE_DIRS = {
     "venv",
     ".venv",
@@ -64,6 +69,22 @@ def _read(path):
         return f.read()
 
 
+def _parse(source, filename):
+    """
+    ast.parse()/compile() on Python 2 raises `SyntaxError: encoding
+    declaration in Unicode string` when given an already-decoded unicode
+    string that still contains a `# -*- coding: ... -*-` line - which
+    every file in this project (and most real Python 2 codebases) has.
+    Encoding back to bytes first sidesteps this: the parser detects the
+    encoding itself from the declaration, exactly like it would reading
+    the file directly, and Python 3's ast.parse() accepts bytes the same
+    way so this is a no-op behavior change there.
+    """
+    if isinstance(source, text_type):
+        source = source.encode("utf-8")
+    return ast.parse(source, filename=filename)
+
+
 # ---------------------------------------------------------------------------
 # deadcode
 # ---------------------------------------------------------------------------
@@ -76,7 +97,7 @@ def find_dead_code(source, filename="<string>"):
     so treat module-level "unused defs" as candidates to double-check,
     not certainties.
     """
-    tree = ast.parse(source, filename=filename)
+    tree = _parse(source, filename)
 
     imported = {}
     for node in ast.walk(tree):
@@ -134,7 +155,7 @@ def find_lint_issues(source, filename="<string>"):
     except tokenize.TokenError:
         pass
 
-    tree = ast.parse(source, filename=filename)
+    tree = _parse(source, filename)
 
     for node in ast.walk(tree):
         if isinstance(node, ast.ExceptHandler) and node.type is None:
@@ -180,7 +201,7 @@ def _complexity_of(func_node):
 
 
 def find_complexity(source, filename="<string>"):
-    tree = ast.parse(source, filename=filename)
+    tree = _parse(source, filename)
     results = []
     for node in ast.walk(tree):
         if isinstance(node, _FUNC_TYPES):
@@ -192,12 +213,19 @@ def find_complexity(source, filename="<string>"):
 # CLI
 # ---------------------------------------------------------------------------
 
+def _report_unparseable(failed_files):
+    for filepath, error in failed_files:
+        safe_print(banner("QUALITY", "{}: could not parse ({})".format(filepath, error)))
+
+
 def _run_deadcode(path):
     found_anything = False
+    failed_files = []
     for filepath in _iter_py_files(path):
         try:
             result = find_dead_code(_read(filepath), filepath)
-        except SyntaxError:
+        except SyntaxError as e:
+            failed_files.append((filepath, e))
             continue
 
         for name, lineno in result["unused_imports"]:
@@ -207,34 +235,48 @@ def _run_deadcode(path):
             found_anything = True
             safe_print(banner("QUALITY", "{}:{} '{}' is never referenced in this file (candidate, may be used elsewhere)".format(filepath, lineno, name)))
 
-    if not found_anything:
+    _report_unparseable(failed_files)
+
+    if not found_anything and not failed_files:
         safe_print(banner("QUALITY", "no dead code candidates found"))
-    return 1 if found_anything else 0
+    elif not found_anything:
+        safe_print(banner("QUALITY", "no dead code candidates found in the files that could be parsed"))
+
+    return 1 if (found_anything or failed_files) else 0
 
 
 def _run_lint(path):
     found_anything = False
+    failed_files = []
     for filepath in _iter_py_files(path):
         try:
             issues = find_lint_issues(_read(filepath), filepath)
-        except SyntaxError:
+        except SyntaxError as e:
+            failed_files.append((filepath, e))
             continue
 
         for kind, lineno, message in issues:
             found_anything = True
             safe_print(banner("QUALITY", "{}:{} [{}] {}".format(filepath, lineno, kind, message)))
 
-    if not found_anything:
+    _report_unparseable(failed_files)
+
+    if not found_anything and not failed_files:
         safe_print(banner("QUALITY", "no lint issues found"))
-    return 1 if found_anything else 0
+    elif not found_anything:
+        safe_print(banner("QUALITY", "no lint issues found in the files that could be parsed"))
+
+    return 1 if (found_anything or failed_files) else 0
 
 
 def _run_complexity(path, threshold=10):
     found_high = False
+    failed_files = []
     for filepath in _iter_py_files(path):
         try:
             results = find_complexity(_read(filepath), filepath)
-        except SyntaxError:
+        except SyntaxError as e:
+            failed_files.append((filepath, e))
             continue
 
         for name, lineno, complexity in results:
@@ -243,7 +285,9 @@ def _run_complexity(path, threshold=10):
                 found_high = True
             safe_print(banner("QUALITY", "{}:{} {}() complexity={}{}".format(filepath, lineno, name, complexity, flag)))
 
-    return 1 if found_high else 0
+    _report_unparseable(failed_files)
+
+    return 1 if (found_high or failed_files) else 0
 
 
 def main():
