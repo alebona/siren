@@ -275,13 +275,36 @@ Reporta chaves presentes em um arquivo e ausentes no outro, e sai com código de
 ### Snippets — `siren-snippet`
 
 ```bash
-echo "print('ola')" | siren-snippet save saudacao
+echo "print('ola')" | siren-snippet save saudacao --tag python
+siren-snippet save query --file query.sql --tag sql   # a partir de um arquivo, em vez de stdin
 siren-snippet show saudacao
-siren-snippet list
+siren-snippet copy saudacao                            # copia direto pra área de transferência
+siren-snippet edit saudacao                             # abre no seu $EDITOR
+siren-snippet rename saudacao ola
+siren-snippet list [--tag sql]
+siren-snippet tags                                      # toda tag em uso, com contagem
+siren-snippet search select                              # busca por nome, tag ou conteúdo
 siren-snippet remove saudacao
 ```
 
-Snippets são salvos como arquivos de texto simples em `~/.siren/snippets/`.
+`save` recusa sobrescrever um snippet existente a menos que você passe `--force` — vale o mesmo pro `rename`.
+
+Snippets podem ter marcadores `{{placeholder}}`, preenchidos na hora de usar em vez de na hora de salvar:
+
+```bash
+echo 'SELECT * FROM {{tabela}};' | siren-snippet save query --tag sql
+siren-snippet copy query --var tabela=usuarios   # copia "SELECT * FROM usuarios;"
+siren-snippet show query --var tabela=usuarios   # mesma coisa, mas impresso em vez de copiado
+```
+
+Faça backup ou mova seus snippets entre máquinas com `export`/`import` (conteúdo, tags e datas viajam juntos; `import` pula nomes que já existem a menos que você passe `--force`):
+
+```bash
+siren-snippet export backup.json
+siren-snippet import backup.json
+```
+
+Snippets são salvos como arquivos de texto simples em `~/.siren/snippets/`, com tags/datas guardadas separadamente em `~/.siren/snippets/_index.json` (então qualquer snippet salvo antes dessa funcionalidade existir continua funcionando normalmente, só sem tags).
 
 ### Cliente HTTP — `siren-http`
 

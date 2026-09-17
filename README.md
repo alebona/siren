@@ -275,13 +275,36 @@ Reports keys present in one file but missing from the other, and exits non-zero 
 ### Snippets — `siren-snippet`
 
 ```bash
-echo "print('hello')" | siren-snippet save greet
+echo "print('hello')" | siren-snippet save greet --tag python
+siren-snippet save query --file query.sql --tag sql   # from a file instead of stdin
 siren-snippet show greet
-siren-snippet list
+siren-snippet copy greet                               # sends it straight to the clipboard
+siren-snippet edit greet                                # opens it in $EDITOR
+siren-snippet rename greet hello
+siren-snippet list [--tag sql]
+siren-snippet tags                                      # every tag in use, with counts
+siren-snippet search select                              # matches by name, tag, or content
 siren-snippet remove greet
 ```
 
-Snippets are stored as plain text files under `~/.siren/snippets/`.
+`save` refuses to overwrite an existing snippet unless you pass `--force` — this also applies to `rename`.
+
+Snippets can hold `{{placeholder}}` markers, filled in on the way out instead of when saved:
+
+```bash
+echo 'SELECT * FROM {{table}};' | siren-snippet save query --tag sql
+siren-snippet copy query --var table=users   # copies "SELECT * FROM users;"
+siren-snippet show query --var table=users   # same, printed instead of copied
+```
+
+Back up or move your snippets between machines with `export`/`import` (content, tags, and timestamps all round-trip; `import` skips names that already exist unless you pass `--force`):
+
+```bash
+siren-snippet export backup.json
+siren-snippet import backup.json
+```
+
+Snippets are stored as plain text files under `~/.siren/snippets/`, with tags/timestamps tracked separately in `~/.siren/snippets/_index.json` (so any snippet saved before this existed keeps working unchanged, just without tags).
 
 ### HTTP client — `siren-http`
 
