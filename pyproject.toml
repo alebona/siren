@@ -34,6 +34,8 @@ siren-env = "siren.envtool:main"
 siren-snippet = "siren.snippets:main"
 siren-http = "siren.http_client:main"
 siren-quality = "siren.quality:main"
+siren-login = "siren.account:main"
+siren-events = "siren.events:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
