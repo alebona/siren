@@ -63,15 +63,21 @@ def send(method, url, headers=None, json_body=None, data=None, timeout=10.0):
 
     try:
         response = urlopen(request, timeout=timeout)
-        status = response.getcode()
-        reason = getattr(response, "reason", "")
-        resp_headers = list(response.info().items())
-        raw_body = response.read()
+        try:
+            status = response.getcode()
+            reason = getattr(response, "reason", "")
+            resp_headers = list(response.info().items())
+            raw_body = response.read()
+        finally:
+            response.close()
     except HTTPError as e:
-        status = e.code
-        reason = getattr(e, "reason", "")
-        resp_headers = list(e.headers.items()) if e.headers else []
-        raw_body = e.read()
+        try:
+            status = e.code
+            reason = getattr(e, "reason", "")
+            resp_headers = list(e.headers.items()) if e.headers else []
+            raw_body = e.read()
+        finally:
+            e.close()
 
     try:
         body_text = raw_body.decode("utf-8")
