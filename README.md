@@ -341,6 +341,32 @@ siren-quality complexity .   # cyclomatic complexity per function, flags anythin
 
 ---
 
+## Pro tier
+
+Everything above is free and runs entirely offline. The `siren-debug` package also ships a couple of pro-tier commands that talk to a small backend (separate, closed-source repo) for a paid feature: exception capture with a searchable history, instead of only a local `siren.catch()`.
+
+```bash
+siren-login signup you@example.com   # creates an account + API key, stored in ~/.siren/credentials.json
+siren-login status                    # check your plan/license
+siren-login logout
+```
+
+```python
+try:
+    risky()
+except Exception:
+    siren.report()   # sends the exception (with traceback) to your workspace
+```
+
+```bash
+siren-events list        # recent exceptions reported from any of your machines
+siren-events show <id>   # full traceback for one of them
+```
+
+`siren.report()` never raises on its own — if you're not logged in, or the backend can't be reached, it prints a message and returns `None` instead of breaking your error handling. Point the CLI at a different backend with `SIREN_API_URL` (defaults to `http://127.0.0.1:8000`, since the hosted backend isn't publicly available yet).
+
+---
+
 ## Framework examples
 
 <details>

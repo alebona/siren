@@ -341,6 +341,32 @@ siren-quality complexity .   # complexidade ciclomática por função, sinaliza 
 
 ---
 
+## Tier pro
+
+Tudo acima é grátis e roda 100% offline. O pacote `siren-debug` também traz alguns comandos do tier pago, que conversam com um backend pequeno (repositório separado, código fechado) pra uma feature paga: captura de exceções com histórico pesquisável, em vez de só o `siren.catch()` local.
+
+```bash
+siren-login signup voce@exemplo.com   # cria uma conta + chave de API, salva em ~/.siren/credentials.json
+siren-login status                     # verifica seu plano/licença
+siren-login logout
+```
+
+```python
+try:
+    risky()
+except Exception:
+    siren.report()   # envia a exceção (com traceback) pro seu workspace
+```
+
+```bash
+siren-events list        # exceções recentes reportadas de qualquer uma das suas máquinas
+siren-events show <id>   # traceback completo de uma delas
+```
+
+`siren.report()` nunca lança erro por conta própria — se você não estiver logado, ou o backend não estiver acessível, ele imprime uma mensagem e retorna `None` em vez de quebrar seu tratamento de erro. Aponte o CLI pra um backend diferente com `SIREN_API_URL` (padrão `http://127.0.0.1:8000`, já que o backend hospedado ainda não está disponível publicamente).
+
+---
+
 ## Exemplos com frameworks
 
 <details>
