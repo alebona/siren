@@ -20,6 +20,7 @@ import sys
 import traceback
 
 from . import account, http_client
+from .http_client import URLError
 from ._cli import banner
 from ._output import safe_print
 
@@ -91,6 +92,14 @@ def _require_credentials():
     return creds
 
 
+def _send_or_exit(api_url, *args, **kwargs):
+    try:
+        return http_client.send(*args, **kwargs)
+    except URLError as e:
+        safe_print(banner("EVENTS", "Could not reach siren-pro at {} - is it running? ({})".format(api_url, e)))
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(prog="siren-events")
     subparsers = parser.add_subparsers(dest="command")
@@ -104,8 +113,8 @@ def main():
 
     if args.command == "list":
         creds = _require_credentials()
-        result = http_client.send(
-            "GET", creds["api_url"] + "/events",
+        result = _send_or_exit(
+            creds["api_url"], "GET", creds["api_url"] + "/events",
             headers={"Authorization": "Bearer {}".format(creds["api_key"])},
         )
         if result["status"] != 200:
@@ -123,8 +132,8 @@ def main():
 
     elif args.command == "show":
         creds = _require_credentials()
-        result = http_client.send(
-            "GET", "{}/events/{}".format(creds["api_url"], args.id),
+        result = _send_or_exit(
+            creds["api_url"], "GET", "{}/events/{}".format(creds["api_url"], args.id),
             headers={"Authorization": "Bearer {}".format(creds["api_key"])},
         )
         if result["status"] != 200:

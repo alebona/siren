@@ -17,6 +17,7 @@ import os
 import sys
 
 from . import http_client
+from .http_client import URLError
 from ._cli import banner
 from ._output import safe_print
 
@@ -65,9 +66,16 @@ def clear_credentials():
     return True
 
 
+def _send(api_url, *args, **kwargs):
+    try:
+        return http_client.send(*args, **kwargs)
+    except URLError as e:
+        raise RuntimeError("Could not reach siren-pro at {} - is it running? ({})".format(api_url, e))
+
+
 def signup(email):
     api_url = _api_url()
-    result = http_client.send("POST", api_url + "/auth/signup", json_body={"email": email})
+    result = _send(api_url, "POST", api_url + "/auth/signup", json_body={"email": email})
     if result["status"] != 200:
         raise RuntimeError("Signup failed ({}): {}".format(result["status"], result["body"]))
     body = json.loads(result["body"])
@@ -77,8 +85,8 @@ def signup(email):
 
 def use_key(api_key):
     api_url = _api_url()
-    result = http_client.send(
-        "GET", api_url + "/licenses/validate",
+    result = _send(
+        api_url, "GET", api_url + "/licenses/validate",
         headers={"Authorization": "Bearer {}".format(api_key)},
     )
     if result["status"] != 200:
@@ -92,10 +100,13 @@ def validate():
     creds = load_credentials()
     if creds is None:
         return None
-    result = http_client.send(
-        "GET", creds["api_url"] + "/licenses/validate",
-        headers={"Authorization": "Bearer {}".format(creds["api_key"])},
-    )
+    try:
+        result = _send(
+            creds["api_url"], "GET", creds["api_url"] + "/licenses/validate",
+            headers={"Authorization": "Bearer {}".format(creds["api_key"])},
+        )
+    except RuntimeError as e:
+        return {"active": False, "error": str(e)}
     if result["status"] != 200:
         return {"active": False, "error": "{} {}".format(result["status"], result["body"])}
     return json.loads(result["body"])
