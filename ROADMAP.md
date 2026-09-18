@@ -119,11 +119,18 @@ pelo menos uma feature grátis como porta de entrada.
 
 ## Próximos passos
 
-1. Definir a **primeira feature paga concreta** — a que mais justifica
-   conta+billing. Isso ancora o MVP do backend.
-2. Desenhar o schema mínimo de licenciamento (users/licenses/plans) e o fluxo
-   de `siren login`.
-3. Roadmap faseado (v0.5 → v1.0) com o que entra em cada versão.
+1. ✅ Definir a **primeira feature paga concreta** — captura de exceções
+   (mini-Sentry). Ver "Atualização 2026-09-18" abaixo.
+2. ✅ Schema mínimo de licenciamento (users/workspaces/licenses) e fluxo de
+   `siren-login`.
+3. **Decidir hospedagem do backend** — hoje só roda local
+   (`uvicorn app.main:app`); sem isso, `siren-login signup` não funciona pra
+   ninguém fora da própria máquina de dev. Precisa da conta/decisão do
+   usuário (Render, Fly.io, Railway, VPS próprio, etc.) — não é algo pra
+   decidir sozinho.
+4. Integrar Stripe de verdade (hoje toda licença nasce `active=true` sem
+   cobrança nenhuma — ver riscos).
+5. Roadmap faseado (v0.5 → v1.0) com o que entra em cada versão.
 
 ## Repositórios
 
@@ -155,3 +162,34 @@ implementado mesmo assim a pedido do usuário (`siren.patch_requests()` /
   `siren-scaffold`; deadcode + lint + complexity viraram um único
   `siren-quality` com subcomandos) — ver `CHANGELOG.md` 0.6.0 para a lista
   final de comandos.
+
+### Atualização 2026-09-18 — MVP do tier pro (captura de exceções)
+
+Primeira feature paga escolhida: **captura de exceções** (mini-Sentry),
+área Debug/Profiling. Snippet sync foi cogitado primeiro, mas descartado —
+o próprio usuário não usaria isso no dia a dia, e a barra pra primeira
+feature paga é "eu sentiria falta disso de verdade". Escopo do MVP,
+combinado explicitamente com o usuário:
+- ✅ **Dentro do escopo**: signup (`POST /auth/signup`), validação de
+  licença (`GET /licenses/validate`), captura/listagem/detalhe de eventos
+  (`POST/GET /events`, `GET /events/{id}`), tudo com testes (backend: 11
+  testes; CLI: 16 testes) e verificado ponta a ponta com o backend real
+  rodando local.
+- ⏸️ **Fora do escopo, deliberadamente adiado**: notificação por
+  push/e-mail (a captura funciona, mas é "puxar" via `siren-events list`,
+  não "empurrar" um alerta), cobrança real via Stripe (toda licença nasce
+  `active=true`, sem cobrar nada ainda), verificação de e-mail no signup
+  (qualquer e-mail funciona), convite de equipe (schema já suporta
+  múltiplos membros por workspace, mas sem endpoint ainda), e hospedagem
+  (backend só roda local por enquanto).
+- **Arquitetura**: SQLite puro (sem ORM) do lado do backend, dados sempre
+  escopados por `workspace_id` (não por usuário direto) — pra quando
+  compartilhamento de equipe existir, é aditivo, não retrabalho.
+- **Preço definido** (ainda não integrado ao Stripe): R$10/mês, US$5/mês,
+  €5/mês — preço regional intencional, não conversão direta de câmbio (o
+  usuário rejeitou atrelar o preço em real ao dólar, tanto pelo poder de
+  compra quanto pela volatilidade cambial).
+- Ambos os repositórios (`siren` e `siren-pro`) publicados/commitados;
+  nenhuma versão nova do PyPI publicada ainda (`siren-login`/`siren-events`
+  já estão no pacote, só não foram lançados — ver decisão de "lançar em
+  lote" abaixo).
