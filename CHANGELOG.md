@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+Accumulating here rather than publishing a version per change - see
+`ROADMAP.md` for the pro-tier context.
+
+### Added
+- `siren-snippet copy <name>` — copies a snippet straight to the system clipboard (`pbcopy`/`clip`/`xclip`/`xsel`, no external dependency).
+- `siren-snippet edit <name>` — opens a snippet in `$EDITOR`/`$VISUAL`.
+- `siren-snippet rename <old> <new>` — renames a snippet, preserving its tags/timestamps.
+- `siren-snippet save --tag ...`, `siren-snippet list --tag ...`, and `siren-snippet tags` (every tag in use, with counts).
+- `siren-snippet search <term>` — matches by name, tag, or content.
+- `{{placeholder}}` markers in a snippet's content, filled in via `--var key=value` on `show`/`copy`.
+- `siren-snippet export`/`import` — round-trips all snippets (content, tags, timestamps) through a JSON file, for backup or moving to another machine.
+- `siren-snippet save --file <path>` — reads content from a file instead of stdin, defaulting the snippet name to the file's basename.
+- `siren-snippet list` now shows tags, last-updated time, and a one-line content preview instead of just the bare name.
+- `siren-login` (`signup`, `use-key`, `status`, `logout`) and `siren-events` (`list`, `show`) — the first pro-tier feature: exception capture. `siren.report()` sends a caught exception to your `siren-pro` workspace; never raises on its own even if you're not logged in or the backend is unreachable.
+
+### Changed
+- `siren-snippet save` now refuses to overwrite an existing snippet unless you pass `--force`, instead of silently clobbering it (matches `siren-scaffold`'s existing behavior).
+
+### Fixed
+- `http_client.send()` didn't close the underlying connection on either the success or error path, surfacing as `ResourceWarning: unclosed socket` once something (the new `siren-login`) actually hit non-2xx responses through it.
+
+---
+
 ## [0.6.3] - 2026-09-15
 
 ### Fixed
