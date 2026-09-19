@@ -70,6 +70,7 @@ def report(exc=None, label=None):
             "POST", creds["api_url"] + "/events",
             headers={"Authorization": "Bearer {}".format(creds["api_key"])},
             json_body=payload,
+            timeout=60.0,  # Render's free tier can take a while to wake from sleep
         )
     except Exception as e:
         safe_print(banner("EVENTS", "could not reach siren-pro: {}".format(e)))
@@ -93,6 +94,7 @@ def _require_credentials():
 
 
 def _send_or_exit(api_url, *args, **kwargs):
+    kwargs.setdefault("timeout", 60.0)  # Render's free tier can take a while to wake from sleep
     try:
         return http_client.send(*args, **kwargs)
     except URLError as e:

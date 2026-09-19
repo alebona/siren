@@ -363,7 +363,7 @@ siren-events list        # recent exceptions reported from any of your machines
 siren-events show <id>   # full traceback for one of them
 ```
 
-`siren.report()` never raises on its own — if you're not logged in, or the backend can't be reached, it prints a message and returns `None` instead of breaking your error handling. Point the CLI at a different backend with `SIREN_API_URL` (defaults to `http://127.0.0.1:8000`, since the hosted backend isn't publicly available yet).
+`siren.report()` never raises on its own — if you're not logged in, or the backend can't be reached, it prints a message and returns `None` instead of breaking your error handling. Point the CLI at a different backend with `SIREN_API_URL` (defaults to the hosted one). The hosted backend runs on Render's free tier, so it sleeps after inactivity — the first request after a while can take 30-60s to wake it up.
 
 ---
 

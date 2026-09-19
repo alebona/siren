@@ -26,7 +26,7 @@ try:
 except NameError:
     text_type = str  # Python 3
 
-DEFAULT_API_URL = "http://127.0.0.1:8000"
+DEFAULT_API_URL = "https://siren-pro.onrender.com"
 
 
 def _credentials_path():
@@ -67,6 +67,10 @@ def clear_credentials():
 
 
 def _send(api_url, *args, **kwargs):
+    # Render's free tier sleeps after inactivity and can take 30-60s to
+    # wake on the first request - the default 10s timeout in http_client
+    # would misreport that as "unreachable" instead of "just slow".
+    kwargs.setdefault("timeout", 60.0)
     try:
         return http_client.send(*args, **kwargs)
     except URLError as e:
