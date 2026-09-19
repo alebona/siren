@@ -123,11 +123,9 @@ pelo menos uma feature grátis como porta de entrada.
    (mini-Sentry). Ver "Atualização 2026-09-18" abaixo.
 2. ✅ Schema mínimo de licenciamento (users/workspaces/licenses) e fluxo de
    `siren-login`.
-3. **Decidir hospedagem do backend** — hoje só roda local
-   (`uvicorn app.main:app`); sem isso, `siren-login signup` não funciona pra
-   ninguém fora da própria máquina de dev. Precisa da conta/decisão do
-   usuário (Render, Fly.io, Railway, VPS próprio, etc.) — não é algo pra
-   decidir sozinho.
+3. ✅ **Hospedagem do backend** — Render (API) + Supabase (Postgres),
+   `https://siren-pro.onrender.com`, no ar e é o padrão do CLI. Ver
+   "Atualização 2026-09-19" abaixo.
 4. Integrar Stripe de verdade (hoje toda licença nasce `active=true` sem
    cobrança nenhuma — ver riscos).
 5. Roadmap faseado (v0.5 → v1.0) com o que entra em cada versão.
@@ -180,11 +178,12 @@ combinado explicitamente com o usuário:
   não "empurrar" um alerta), cobrança real via Stripe (toda licença nasce
   `active=true`, sem cobrar nada ainda), verificação de e-mail no signup
   (qualquer e-mail funciona), convite de equipe (schema já suporta
-  múltiplos membros por workspace, mas sem endpoint ainda), e hospedagem
-  (backend só roda local por enquanto).
-- **Arquitetura**: SQLite puro (sem ORM) do lado do backend, dados sempre
-  escopados por `workspace_id` (não por usuário direto) — pra quando
-  compartilhamento de equipe existir, é aditivo, não retrabalho.
+  múltiplos membros por workspace, mas sem endpoint ainda).
+- **Arquitetura**: Postgres via `psycopg` (sem ORM) do lado do backend —
+  originalmente era SQLite puro, migrado em 2026-09-18 pra viabilizar
+  hospedagem (ver abaixo). Dados sempre escopados por `workspace_id` (não
+  por usuário direto) — pra quando compartilhamento de equipe existir, é
+  aditivo, não retrabalho.
 - **Preço definido** (ainda não integrado ao Stripe): R$10/mês, US$5/mês,
   €5/mês — preço regional intencional, não conversão direta de câmbio (o
   usuário rejeitou atrelar o preço em real ao dólar, tanto pelo poder de
@@ -193,3 +192,29 @@ combinado explicitamente com o usuário:
   nenhuma versão nova do PyPI publicada ainda (`siren-login`/`siren-events`
   já estão no pacote, só não foram lançados — ver decisão de "lançar em
   lote" abaixo).
+
+### Atualização 2026-09-19 — backend em produção
+
+Deploy real feito: **Render** (API, free tier) + **Supabase** (Postgres,
+free tier). Motivo de trocar SQLite por Postgres: web services gratuitos do
+Render têm sistema de arquivos efêmero (sem disco persistente), então o
+arquivo SQLite seria apagado a cada redeploy/reinício — inviável mesmo pra
+teste. Supabase foi escolhido em vez do Postgres gratuito do próprio Render
+porque o do Render **expira e é apagado depois de 30 dias**; o do Supabase
+só pausa após uma semana sem uso e os dados continuam lá, reativa com um
+clique no painel.
+
+- `https://siren-pro.onrender.com` está no ar e é o valor padrão de
+  `SIREN_API_URL` no pacote público — `siren-login signup` já funciona sem
+  nenhuma configuração.
+- Testado de ponta a ponta contra produção de verdade: signup, validação de
+  licença, e uma exceção real capturada via `siren.report()` e recuperada
+  via `siren-events list`.
+- Timeout do CLI subiu pra 60s nas chamadas de `siren-login`/`siren-events`
+  — o tier grátis do Render "dorme" após inatividade e pode levar 30-60s
+  pra acordar na primeira chamada; o timeout antigo (10s) reportaria isso
+  como "backend inacessível" por engano.
+- Durante o deploy, o build do Render falhou porque `requirements.txt`
+  tinha `pytest`/`httpx2` (dependências só de teste, nunca usadas em
+  produção) com uma versão de `httpx2` que não existe de verdade — foram
+  movidas pra um `requirements-dev.txt` separado.

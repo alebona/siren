@@ -22,6 +22,7 @@ Accumulating here rather than publishing a version per change - see
 - `siren-snippet save --file <path>` — reads content from a file instead of stdin, defaulting the snippet name to the file's basename.
 - `siren-snippet list` now shows tags, last-updated time, and a one-line content preview instead of just the bare name.
 - `siren-login` (`signup`, `use-key`, `status`, `logout`) and `siren-events` (`list`, `show`) — the first pro-tier feature: exception capture. `siren.report()` sends a caught exception to your `siren-pro` workspace; never raises on its own even if you're not logged in or the backend is unreachable.
+- The `siren-pro` backend is now live at `https://siren-pro.onrender.com` (Render + Supabase Postgres) and is the CLI's default — no setup needed to try `siren-login signup`. It's on Render's free tier, so it sleeps after inactivity; the first request after a while can take 30-60s to wake it up (the CLI's timeout accounts for this).
 
 ### Changed
 - `siren-snippet save` now refuses to overwrite an existing snippet unless you pass `--force`, instead of silently clobbering it (matches `siren-scaffold`'s existing behavior).
