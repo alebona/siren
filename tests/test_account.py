@@ -8,14 +8,17 @@ from unittest import mock
 
 try:
     from http.server import BaseHTTPRequestHandler, HTTPServer
+    from urllib.parse import urlparse, parse_qs
 except ImportError:  # Python 2
     from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+    from urlparse import urlparse, parse_qs
 
 from siren import account
 
 # email -> api_key, api_key -> {"plan", "active", "workspace_id"}
 _USERS = {}
 _KEYS = {}
+_WEBHOOKS = {}  # api_key -> url
 
 
 class _FakeBackendHandler(BaseHTTPRequestHandler):
@@ -49,6 +52,33 @@ class _FakeBackendHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"api_key": api_key, "workspace_id": workspace_id})
             return
 
+        parsed = urlparse(self.path)
+
+        if parsed.path == "/billing/checkout":
+            api_key = self._auth_key()
+            if api_key not in _KEYS:
+                self._send_json(401, {"detail": "Invalid API key"})
+                return
+            currency = parse_qs(parsed.query).get("currency", ["brl"])[0]
+            self._send_json(200, {"checkout_url": "https://checkout.stripe.com/fake-{}".format(currency)})
+            return
+
+        if parsed.path == "/workspaces/invite":
+            api_key = self._auth_key()
+            if api_key not in _KEYS:
+                self._send_json(401, {"detail": "Invalid API key"})
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            if payload["email"] in _USERS:
+                self._send_json(200, {"status": "added_existing_user", "api_key": None})
+            else:
+                new_key = "invited-key-{}".format(len(_KEYS) + 1)
+                _USERS[payload["email"]] = new_key
+                _KEYS[new_key] = _KEYS[api_key]
+                self._send_json(200, {"status": "created_user", "api_key": new_key})
+            return
+
         self._send_json(404, {"detail": "not found"})
 
     def do_GET(self):
@@ -58,6 +88,21 @@ class _FakeBackendHandler(BaseHTTPRequestHandler):
                 self._send_json(401, {"detail": "Invalid API key"})
                 return
             self._send_json(200, _KEYS[api_key])
+            return
+
+        self._send_json(404, {"detail": "not found"})
+
+    def do_PUT(self):
+        if self.path == "/workspaces/notify-webhook":
+            api_key = self._auth_key()
+            if api_key not in _KEYS:
+                self._send_json(401, {"detail": "Invalid API key"})
+                return
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            url = payload.get("url") or None
+            _WEBHOOKS[api_key] = url
+            self._send_json(200, {"notify_webhook_url": url})
             return
 
         self._send_json(404, {"detail": "not found"})
@@ -83,6 +128,7 @@ class TestAccount(unittest.TestCase):
     def setUp(self):
         _USERS.clear()
         _KEYS.clear()
+        _WEBHOOKS.clear()
 
         self.tmpdir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmpdir, True)
@@ -140,6 +186,41 @@ class TestAccount(unittest.TestCase):
 
     def test_clear_credentials_when_not_logged_in_returns_false(self):
         self.assertFalse(account.clear_credentials())
+
+    def test_upgrade_returns_checkout_url(self):
+        account.signup("me@example.com")
+        body = account.upgrade("usd")
+        self.assertEqual(body["checkout_url"], "https://checkout.stripe.com/fake-usd")
+
+    def test_upgrade_without_login_raises(self):
+        with self.assertRaises(RuntimeError):
+            account.upgrade()
+
+    def test_invite_creates_new_user(self):
+        account.signup("owner@example.com")
+        body = account.invite("teammate@example.com")
+        self.assertEqual(body["status"], "created_user")
+        self.assertIn("api_key", body)
+
+    def test_invite_adds_existing_user(self):
+        account.signup("owner@example.com")
+        account.signup("teammate@example.com")
+        account.clear_credentials()
+        account.use_key(_USERS["owner@example.com"])
+
+        body = account.invite("teammate@example.com")
+        self.assertEqual(body["status"], "added_existing_user")
+
+    def test_set_webhook_stores_url(self):
+        account.signup("me@example.com")
+        body = account.set_webhook("https://hooks.slack.com/fake")
+        self.assertEqual(body["notify_webhook_url"], "https://hooks.slack.com/fake")
+
+    def test_set_webhook_empty_string_clears(self):
+        account.signup("me@example.com")
+        account.set_webhook("https://hooks.slack.com/fake")
+        body = account.set_webhook("")
+        self.assertIsNone(body["notify_webhook_url"])
 
 
 if __name__ == "__main__":

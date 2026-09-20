@@ -7,6 +7,9 @@ Usage:
     siren-login use-key <api_key>
     siren-login status
     siren-login logout
+    siren-login upgrade [--currency brl|usd|eur]
+    siren-login invite <email>
+    siren-login set-webhook [url]
 """
 from __future__ import print_function
 
@@ -116,6 +119,49 @@ def validate():
     return json.loads(result["body"])
 
 
+def _require_login():
+    creds = load_credentials()
+    if creds is None:
+        raise RuntimeError("not logged in - run 'siren-login signup <email>' first")
+    return creds
+
+
+def upgrade(currency="brl"):
+    creds = _require_login()
+    result = _send(
+        creds["api_url"], "POST",
+        "{}/billing/checkout?currency={}".format(creds["api_url"], currency),
+        headers={"Authorization": "Bearer {}".format(creds["api_key"])},
+    )
+    if result["status"] != 200:
+        raise RuntimeError("Checkout failed ({}): {}".format(result["status"], result["body"]))
+    return json.loads(result["body"])
+
+
+def invite(email):
+    creds = _require_login()
+    result = _send(
+        creds["api_url"], "POST", creds["api_url"] + "/workspaces/invite",
+        headers={"Authorization": "Bearer {}".format(creds["api_key"])},
+        json_body={"email": email},
+    )
+    if result["status"] != 200:
+        raise RuntimeError("Invite failed ({}): {}".format(result["status"], result["body"]))
+    return json.loads(result["body"])
+
+
+def set_webhook(url):
+    creds = _require_login()
+    result = _send(
+        creds["api_url"], "PUT", creds["api_url"] + "/workspaces/notify-webhook",
+        headers={"Authorization": "Bearer {}".format(creds["api_key"])},
+        json_body={"url": url},
+    )
+    if result["status"] != 200:
+        raise RuntimeError("Setting webhook failed ({}): {}".format(result["status"], result["body"]))
+    return json.loads(result["body"])
+
+
 def main():
     parser = argparse.ArgumentParser(prog="siren-login")
     subparsers = parser.add_subparsers(dest="command")
@@ -128,6 +174,15 @@ def main():
 
     subparsers.add_parser("status")
     subparsers.add_parser("logout")
+
+    upgrade_parser = subparsers.add_parser("upgrade")
+    upgrade_parser.add_argument("--currency", default="brl", choices=["brl", "usd", "eur"])
+
+    invite_parser = subparsers.add_parser("invite")
+    invite_parser.add_argument("email")
+
+    webhook_parser = subparsers.add_parser("set-webhook")
+    webhook_parser.add_argument("url", nargs="?", default="")
 
     args = parser.parse_args()
 
@@ -168,6 +223,38 @@ def main():
     elif args.command == "logout":
         removed = clear_credentials()
         safe_print(banner("LOGIN", "logged out" if removed else "was not logged in"))
+
+    elif args.command == "upgrade":
+        try:
+            body = upgrade(args.currency)
+        except Exception as e:
+            safe_print(banner("LOGIN", "Error: {}".format(e)))
+            sys.exit(1)
+        safe_print(banner("LOGIN", "open this link to finish subscribing:"))
+        safe_print(banner("LOGIN", body["checkout_url"]))
+
+    elif args.command == "invite":
+        try:
+            body = invite(args.email)
+        except Exception as e:
+            safe_print(banner("LOGIN", "Error: {}".format(e)))
+            sys.exit(1)
+        if body["status"] == "created_user":
+            safe_print(banner("LOGIN", "created an account for {} - share this key with them:".format(args.email)))
+            safe_print(banner("LOGIN", body["api_key"]))
+        else:
+            safe_print(banner("LOGIN", "{} added to your workspace".format(args.email)))
+
+    elif args.command == "set-webhook":
+        try:
+            body = set_webhook(args.url)
+        except Exception as e:
+            safe_print(banner("LOGIN", "Error: {}".format(e)))
+            sys.exit(1)
+        if body["notify_webhook_url"]:
+            safe_print(banner("LOGIN", "notifications will be sent to {}".format(body["notify_webhook_url"])))
+        else:
+            safe_print(banner("LOGIN", "notifications disabled"))
 
     else:
         parser.print_help()
