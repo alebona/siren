@@ -126,9 +126,34 @@ pelo menos uma feature grátis como porta de entrada.
 3. ✅ **Hospedagem do backend** — Render (API) + Supabase (Postgres),
    `https://siren-pro.onrender.com`, no ar e é o padrão do CLI. Ver
    "Atualização 2026-09-19" abaixo.
-4. Integrar Stripe de verdade (hoje toda licença nasce `active=true` sem
-   cobrança nenhuma — ver riscos).
-5. Roadmap faseado (v0.5 → v1.0) com o que entra em cada versão.
+4. ✅ **Código do Stripe pronto** (checkout + webhook) — falta só a
+   configuração do lado do Stripe (ver "O que falta você fazer" abaixo).
+   Toda licença nova continua nascendo `active=true` de graça até o
+   primeiro pagamento real acontecer.
+5. ✅ Convite de equipe (`siren-login invite`) e notificação via webhook
+   Slack/Discord (`siren-login set-webhook`) — ver "Atualização
+   2026-09-19 (parte 2)" abaixo.
+6. Roadmap faseado (v0.5 → v1.0) com o que entra em cada versão.
+7. Verificação de e-mail no signup — ainda deliberadamente adiado.
+
+## O que falta você fazer (Stripe)
+
+O código do checkout/webhook já está pronto e testado, mas só funciona de
+verdade depois de 3 coisas no painel do Stripe (mesma conta que você já
+usa pra outro app):
+
+1. Criar um **Product** "Siren Pro" com 3 **Prices** recorrentes mensais:
+   R$10 (BRL), US$5 (USD), €5 (EUR).
+2. Criar um **novo webhook endpoint** apontando pra
+   `https://siren-pro.onrender.com/webhooks/stripe`, escutando pelo menos
+   `checkout.session.completed` e `customer.subscription.deleted` —
+   separado do endpoint que o outro app já usa.
+3. No Render, definir as variáveis de ambiente:
+   `SIREN_STRIPE_SECRET_KEY`, `SIREN_STRIPE_WEBHOOK_SECRET`,
+   `SIREN_STRIPE_PRICE_BRL`, `SIREN_STRIPE_PRICE_USD`,
+   `SIREN_STRIPE_PRICE_EUR`.
+
+Depois disso, `siren-login upgrade` já funciona de ponta a ponta.
 
 ## Repositórios
 
@@ -218,3 +243,41 @@ clique no painel.
   tinha `pytest`/`httpx2` (dependências só de teste, nunca usadas em
   produção) com uma versão de `httpx2` que não existe de verdade — foram
   movidas pra um `requirements-dev.txt` separado.
+
+### Atualização 2026-09-19 (parte 2) — Stripe, convite de equipe, notificação
+
+Implementadas as 3 peças que faltavam do backlog do pro tier (menos
+verificação de e-mail, que segue adiada de propósito):
+
+- **Stripe**: `POST /billing/checkout` (cria sessão de Checkout, uma Price
+  por moeda) e `POST /webhooks/stripe` (ativa a licença em
+  `checkout.session.completed`, desativa em
+  `customer.subscription.deleted`). Reusa a conta Stripe existente do
+  usuário — Product/Prices e webhook endpoint próprios do siren-pro,
+  separados do outro app na mesma conta. `siren-login upgrade
+  [--currency brl|usd|eur]`.
+- **Convite de equipe**: `POST /workspaces/invite` — adiciona um usuário
+  existente ao workspace, ou cria um novo já anexado a ele (devolve a
+  chave de API pra repassar manualmente, já que não tem envio por
+  e-mail). `siren-login invite <email>`.
+- **Notificação**: `PUT /workspaces/notify-webhook` guarda uma URL de
+  webhook Slack/Discord; toda captura de exceção manda um post ali
+  (melhor esforço, nunca falha a captura). `siren-login set-webhook
+  [url]`.
+
+**Dois bugs reais pegos pelos testes** (não por revisão manual):
+1. Um usuário em mais de um workspace (depois de ser convidado) recebia
+   um workspace arbitrário de volta em `get_authenticated_workspace`
+   (query sem `ORDER BY`, uma linha só). Corrigido com uma coluna de
+   ordenação em `workspace_members` — a membership mais recente vence
+   (ser convidado pra um time vira seu workspace ativo; ainda não existe
+   troca manual de workspace).
+2. `event["data"]["object"]` no SDK do Stripe é um `StripeObject`, não um
+   dict — `.get()` é bloqueado de propósito (levanta `AttributeError`).
+   Só apareceu porque o teste assinou um payload de webhook de verdade
+   (mesmo esquema HMAC do Stripe) em vez de usar só mocks.
+
+Testado de ponta a ponta contra o backend em produção: convite e
+configuração de webhook funcionam de verdade; checkout retorna
+"não configurado" corretamente (as chaves do Stripe ainda não foram
+definidas no Render — ver "O que falta você fazer" acima).

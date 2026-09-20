@@ -365,6 +365,25 @@ siren-events show <id>   # full traceback for one of them
 
 `siren.report()` never raises on its own — if you're not logged in, or the backend can't be reached, it prints a message and returns `None` instead of breaking your error handling. Point the CLI at a different backend with `SIREN_API_URL` (defaults to the hosted one). The hosted backend runs on Render's free tier, so it sleeps after inactivity — the first request after a while can take 30-60s to wake it up.
 
+**Subscribing:**
+
+```bash
+siren-login upgrade --currency brl   # or usd / eur — prints a Stripe Checkout link to open in a browser
+```
+
+**Team workspaces** — invite a teammate (creates their account if they don't have one yet, and hands you their API key to pass along since there's no email delivery yet):
+
+```bash
+siren-login invite teammate@example.com
+```
+
+**Notifications** — post to a Slack/Discord incoming webhook whenever an exception is captured for your workspace:
+
+```bash
+siren-login set-webhook https://hooks.slack.com/services/...
+siren-login set-webhook              # no URL clears it
+```
+
 ---
 
 ## Framework examples

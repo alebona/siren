@@ -365,6 +365,25 @@ siren-events show <id>   # traceback completo de uma delas
 
 `siren.report()` nunca lança erro por conta própria — se você não estiver logado, ou o backend não estiver acessível, ele imprime uma mensagem e retorna `None` em vez de quebrar seu tratamento de erro. Aponte o CLI pra um backend diferente com `SIREN_API_URL` (o padrão já é o backend hospedado). Esse backend roda no tier grátis do Render, então ele "dorme" depois de um tempo sem uso — a primeira chamada depois de um tempo parado pode levar de 30 a 60s pra acordar.
 
+**Assinatura:**
+
+```bash
+siren-login upgrade --currency brl   # ou usd / eur — imprime um link de Checkout do Stripe pra abrir no navegador
+```
+
+**Workspaces de equipe** — convide um colega (cria a conta pra ele se ainda não tiver, e te devolve a chave de API pra você repassar, já que ainda não tem envio por e-mail):
+
+```bash
+siren-login invite colega@exemplo.com
+```
+
+**Notificações** — posta num webhook do Slack/Discord toda vez que uma exceção é capturada no seu workspace:
+
+```bash
+siren-login set-webhook https://hooks.slack.com/services/...
+siren-login set-webhook              # sem URL, desativa
+```
+
 ---
 
 ## Exemplos com frameworks
