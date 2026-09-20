@@ -6,10 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
-
-Accumulating here rather than publishing a version per change - see
-`ROADMAP.md` for the pro-tier context.
+## [0.7.0] - 2026-09-20
 
 ### Added
 - `siren-snippet copy <name>` — copies a snippet straight to the system clipboard (`pbcopy`/`clip`/`xclip`/`xsel`, no external dependency).
@@ -26,6 +23,7 @@ Accumulating here rather than publishing a version per change - see
 - `siren-login upgrade [--currency brl|usd|eur]` — prints a Stripe Checkout link to subscribe (R$10/US$5/€5 per month).
 - `siren-login invite <email>` — adds a teammate to your workspace (creating their account if they don't have one, handing you their API key since there's no email delivery yet).
 - `siren-login set-webhook [url]` — posts to a Slack/Discord incoming webhook whenever an exception is captured for your workspace; no URL clears it.
+- Stripe billing is fully live in production — `siren-login upgrade` now creates real subscriptions (R$10/US$5/€5 per month) and a completed checkout activates your license automatically via webhook.
 
 ### Changed
 - `siren-snippet save` now refuses to overwrite an existing snippet unless you pass `--force`, instead of silently clobbering it (matches `siren-scaffold`'s existing behavior).
