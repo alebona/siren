@@ -55,6 +55,7 @@ Siren automatically uses `pprint` for complex objects, and picks up the file/lin
 - Terminal snippet manager (`siren-snippet`) and a dependency-free HTTP client (`siren-http`)
 - Local code-quality checks with `siren-quality` (dead code, lint, cyclomatic complexity)
 - `siren` lists every command and what it does, filterable by area (`siren pro`, `siren snippet`)
+- Performance metrics with `siren.profile`/`siren.profile_block` and `siren-perf top` to rank real bottlenecks over time (pro tier)
 - Works in scripts, CLI tools, Django, Flask, FastAPI, and more
 - Colored output with emoji for easy visual scanning
 
@@ -385,6 +386,27 @@ siren-login invite teammate@example.com
 siren-login set-webhook https://hooks.slack.com/services/...
 siren-login set-webhook              # no URL clears it
 ```
+
+**Performance metrics** — time a function or a block of code; samples are buffered locally and uploaded in the background (never a blocking call per invocation), so `siren-perf top` can rank real bottlenecks across runs instead of one call on one machine:
+
+```python
+@siren.profile
+def slow_thing():
+    ...
+
+with siren.profile_block("db-query"):
+    ...
+
+siren.perf_flush()   # force an upload before a short script/job exits
+```
+
+```bash
+siren-perf top                # ranked by total time spent, last 24h by default
+siren-perf top --hours 168    # last 7 days
+siren-perf list --name slow_thing
+```
+
+Tune volume on hot paths with `@siren.profile(sample_rate=0.1)` (sample 10% of calls) or `@siren.profile(min_duration_ms=50)` (only report calls slower than 50ms).
 
 ---
 

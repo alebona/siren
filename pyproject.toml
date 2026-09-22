@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "siren-debug"
-version = "0.7.0"
+version = "0.8.0"
 description = "Minimalist debug tool for Python with automatic cleaner"
 readme = "README.md"
 authors = [
@@ -39,6 +39,7 @@ siren-http = "siren.http_client:main"
 siren-quality = "siren.quality:main"
 siren-login = "siren.account:main"
 siren-events = "siren.events:main"
+siren-perf = "siren.perf:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

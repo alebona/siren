@@ -11,12 +11,13 @@ from .core import (
 )
 from .http_patch import patch_requests, unpatch_requests, patch_httpx, unpatch_httpx
 from .events import report
+from .perf import profile, profile_block, perf_flush
 
 __all__ = [
     "siren", "trace", "info", "set_quiet", "set_logfile", "set_enabled",
     "get_config", "diff", "breakpoint_debug", "memory", "catch",
     "patch_requests", "unpatch_requests", "patch_httpx", "unpatch_httpx",
-    "report",
+    "report", "profile", "profile_block", "perf_flush",
 ]
 
 builtins.siren = siren
@@ -36,3 +37,6 @@ siren.unpatch_requests = unpatch_requests
 siren.patch_httpx = patch_httpx
 siren.unpatch_httpx = unpatch_httpx
 siren.report = report
+siren.profile = profile
+siren.profile_block = profile_block
+siren.perf_flush = perf_flush

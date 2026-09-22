@@ -36,6 +36,9 @@ COMMANDS = [
     ("siren-quality", "quality", "local checks: dead code, lint issues, cyclomatic complexity"),
     ("siren-login", "pro", "pro account: signup, upgrade, team invites, webhook notifications"),
     ("siren-events", "pro", "browse exceptions captured via siren.report() (pro tier)"),
+    ("siren.profile", "pro", "time a function and upload samples for bottleneck tracking (pro tier)"),
+    ("siren.profile_block", "pro", "time a block of code and upload samples for bottleneck tracking (pro tier)"),
+    ("siren-perf", "pro", "rank bottlenecks and browse samples captured via siren.profile() (pro tier)"),
 ]
 
 CATEGORY_ORDER = ["debug", "productivity", "http", "quality", "pro"]
