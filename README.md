@@ -16,7 +16,7 @@ Minimal Python debug helper with automatic cleanup.
 pip install siren-debug
 ```
 
-The package also installs two commands: `siren-clean` (remove debug calls) and `siren-autoload` (use `siren` without importing it).
+The package also installs `siren-clean` (remove debug calls), `siren-autoload` (use `siren` without importing it), and several other `siren-*` tools. Run `siren` (no arguments) for a full list of every command and what it does, filterable by area: `siren pro`, `siren snippet`.
 
 ---
 
@@ -54,6 +54,7 @@ Siren automatically uses `pprint` for complex objects, and picks up the file/lin
 - Project/file scaffolding with `siren-scaffold`, `.env` drift checks with `siren-env`
 - Terminal snippet manager (`siren-snippet`) and a dependency-free HTTP client (`siren-http`)
 - Local code-quality checks with `siren-quality` (dead code, lint, cyclomatic complexity)
+- `siren` lists every command and what it does, filterable by area (`siren pro`, `siren snippet`)
 - Works in scripts, CLI tools, Django, Flask, FastAPI, and more
 - Colored output with emoji for easy visual scanning
 

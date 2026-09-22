@@ -29,6 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
+siren = "siren.cli:main"
 siren-clean = "siren.clean:main"
 siren-autoload = "siren.autoload:main"
 siren-scaffold = "siren.scaffold:main"
