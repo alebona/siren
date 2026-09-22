@@ -222,6 +222,46 @@ class TestAccount(unittest.TestCase):
         body = account.set_webhook("")
         self.assertIsNone(body["notify_webhook_url"])
 
+    def test_upgrade_with_no_currency_uses_detected_one(self):
+        account.signup("me@example.com")
+        with mock.patch.object(account, "detect_currency", return_value="eur"):
+            body = account.upgrade()
+        self.assertEqual(body["checkout_url"], "https://checkout.stripe.com/fake-eur")
+
+
+class TestDetectCurrency(unittest.TestCase):
+    def test_brazil_locale_returns_brl(self):
+        with mock.patch("locale.getlocale", return_value=("pt_BR", "UTF-8")):
+            self.assertEqual(account.detect_currency(), "brl")
+
+    def test_eurozone_locale_returns_eur(self):
+        with mock.patch("locale.getlocale", return_value=("de_DE", "UTF-8")):
+            self.assertEqual(account.detect_currency(), "eur")
+
+    def test_us_locale_returns_usd(self):
+        with mock.patch("locale.getlocale", return_value=("en_US", "UTF-8")):
+            self.assertEqual(account.detect_currency(), "usd")
+
+    def test_unknown_country_defaults_to_usd(self):
+        with mock.patch("locale.getlocale", return_value=("ja_JP", "UTF-8")):
+            self.assertEqual(account.detect_currency(), "usd")
+
+    def test_no_locale_falls_back_to_env_vars(self):
+        with mock.patch("locale.getlocale", return_value=(None, None)), \
+                mock.patch("locale.getdefaultlocale", return_value=(None, None)), \
+                mock.patch.dict(os.environ, {"LANG": "pt_BR.UTF-8"}, clear=True):
+            self.assertEqual(account.detect_currency(), "brl")
+
+    def test_no_locale_info_at_all_defaults_to_usd(self):
+        with mock.patch("locale.getlocale", return_value=(None, None)), \
+                mock.patch("locale.getdefaultlocale", return_value=(None, None)), \
+                mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(account.detect_currency(), "usd")
+
+    def test_never_raises_even_if_locale_module_errors(self):
+        with mock.patch("locale.getlocale", side_effect=Exception("boom")):
+            self.assertEqual(account.detect_currency(), "usd")
+
 
 if __name__ == "__main__":
     unittest.main()

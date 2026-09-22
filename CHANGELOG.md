@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `certifi` is now a real dependency (the only one) — fixes `siren-login`/`siren-events` failing with `CERTIFICATE_VERIFY_FAILED` on Python installs (notably Python 2.7 on macOS) that aren't wired up to the system's trusted root certificates. The free tier stays fully dependency-free in practice; this only matters for the pro tier's HTTPS calls.
+- `siren-login upgrade` now auto-detects your currency from the system locale (BRL for Brazil, EUR for eurozone countries, USD otherwise) instead of requiring `--currency`. Still overridable with `--currency brl|usd|eur`.
+
+### Fixed
+- Certificate verification is never disabled to work around SSL errors — `certifi`'s CA bundle is used instead, so HTTPS stays properly verified even on platforms with a broken default trust store.
+
+---
+
 ## [0.7.0] - 2026-09-20
 
 ### Added

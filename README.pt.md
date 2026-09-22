@@ -44,7 +44,7 @@ Siren usa `pprint` automaticamente para objetos complexos, e identifica sozinho 
 ## Funcionalidades
 
 - Funciona com Python 2.7 e 3.6+
-- Sem dependências externas
+- Sem dependências externas no free tier (`certifi` é a única dependência, usada pra HTTPS confiável no `siren-login`/`siren-events` do tier pro)
 - Exibe valores com arquivo e número da linha
 - Usa `pprint` automaticamente para objetos complexos
 - Trace de função com `@siren.trace`, diff de objetos com `siren.diff`, breakpoint interativo com `siren.breakpoint()`, snapshot de memória com `siren.memory()`, e captura de traceback colorido com `siren.catch`
@@ -368,7 +368,8 @@ siren-events show <id>   # traceback completo de uma delas
 **Assinatura:**
 
 ```bash
-siren-login upgrade --currency brl   # ou usd / eur — imprime um link de Checkout do Stripe pra abrir no navegador
+siren-login upgrade                  # moeda detectada automaticamente pelo locale do sistema
+siren-login upgrade --currency usd   # sobrescreve (brl / usd / eur)
 ```
 
 **Workspaces de equipe** — convide um colega (cria a conta pra ele se ainda não tiver, e te devolve a chave de API pra você repassar, já que ainda não tem envio por e-mail):

@@ -7,7 +7,7 @@ Usage:
     siren-login use-key <api_key>
     siren-login status
     siren-login logout
-    siren-login upgrade [--currency brl|usd|eur]
+    siren-login upgrade [--currency brl|usd|eur]  (auto-detected from your locale if omitted)
     siren-login invite <email>
     siren-login set-webhook [url]
 """
@@ -30,6 +30,44 @@ except NameError:
     text_type = str  # Python 3
 
 DEFAULT_API_URL = "https://siren-pro.onrender.com"
+
+_EUR_COUNTRIES = {
+    "AT", "BE", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR", "IE",
+    "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK",
+}
+
+
+def detect_currency():
+    """
+    Best-effort default currency from the system locale - BRL for Brazil,
+    EUR for eurozone countries, USD otherwise. Never raises; always
+    returns something usable. --currency (or upgrade(currency=...))
+    overrides this when the guess is wrong.
+    """
+    country = None
+
+    try:
+        import locale
+        loc = locale.getlocale()[0]
+        if not loc:
+            loc = locale.getdefaultlocale()[0]
+        if loc and "_" in loc:
+            country = loc.split("_")[-1].split(".")[0].upper()
+    except Exception:
+        pass
+
+    if not country:
+        for var in ("LC_ALL", "LC_MONETARY", "LANG"):
+            value = os.environ.get(var, "")
+            if "_" in value:
+                country = value.split("_")[-1].split(".")[0].upper()
+                break
+
+    if country == "BR":
+        return "brl"
+    if country in _EUR_COUNTRIES:
+        return "eur"
+    return "usd"
 
 
 def _credentials_path():
@@ -126,7 +164,9 @@ def _require_login():
     return creds
 
 
-def upgrade(currency="brl"):
+def upgrade(currency=None):
+    if currency is None:
+        currency = detect_currency()
     creds = _require_login()
     result = _send(
         creds["api_url"], "POST",
@@ -176,7 +216,7 @@ def main():
     subparsers.add_parser("logout")
 
     upgrade_parser = subparsers.add_parser("upgrade")
-    upgrade_parser.add_argument("--currency", default="brl", choices=["brl", "usd", "eur"])
+    upgrade_parser.add_argument("--currency", default=None, choices=["brl", "usd", "eur"])
 
     invite_parser = subparsers.add_parser("invite")
     invite_parser.add_argument("email")
@@ -225,11 +265,13 @@ def main():
         safe_print(banner("LOGIN", "logged out" if removed else "was not logged in"))
 
     elif args.command == "upgrade":
+        currency = args.currency or detect_currency()
         try:
-            body = upgrade(args.currency)
+            body = upgrade(currency)
         except Exception as e:
             safe_print(banner("LOGIN", "Error: {}".format(e)))
             sys.exit(1)
+        safe_print(banner("LOGIN", "currency: {} (use --currency to override)".format(currency.upper())))
         safe_print(banner("LOGIN", "open this link to finish subscribing:"))
         safe_print(banner("LOGIN", body["checkout_url"]))
 

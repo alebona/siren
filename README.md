@@ -44,7 +44,7 @@ Siren automatically uses `pprint` for complex objects, and picks up the file/lin
 ## Features
 
 - Works with Python 2.7 and 3.6+
-- Zero external dependencies
+- Zero external dependencies for the free tier (`certifi` is the only dependency, pulled in for reliable HTTPS in the pro tier's `siren-login`/`siren-events`)
 - Prints values with file and line number
 - Uses `pprint` automatically for complex data
 - Function tracing with `@siren.trace`, object diffing with `siren.diff`, an interactive `siren.breakpoint()`, memory snapshots with `siren.memory()`, and colored traceback capture with `siren.catch`
@@ -368,7 +368,8 @@ siren-events show <id>   # full traceback for one of them
 **Subscribing:**
 
 ```bash
-siren-login upgrade --currency brl   # or usd / eur — prints a Stripe Checkout link to open in a browser
+siren-login upgrade                  # currency auto-detected from your system locale
+siren-login upgrade --currency usd   # override it (brl / usd / eur)
 ```
 
 **Team workspaces** — invite a teammate (creates their account if they don't have one yet, and hands you their API key to pass along since there's no email delivery yet):

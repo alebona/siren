@@ -30,11 +30,12 @@ from ._output import safe_print
 # Some Python installs (notably Python 2.7 and old python.org builds on
 # macOS) don't have their SSL module wired up to the system's trusted root
 # certificates, so any HTTPS request fails with CERTIFICATE_VERIFY_FAILED
-# even though the server's certificate is perfectly valid. If `certifi`
-# happens to be installed already (very common - lots of packages pull it
-# in transitively), use its CA bundle instead of the broken default. This
-# stays optional/best-effort: siren has zero required dependencies, so we
-# only use certifi when it's already there, never require installing it.
+# even though the server's certificate is perfectly valid. certifi is a
+# real dependency (see pyproject.toml) specifically so this always works,
+# regardless of the platform's own certificate setup - relying on it
+# happening to already be installed wasn't reliable enough for a paid
+# feature. The try/except is just defensive (e.g. running from a source
+# checkout before `pip install` has pulled it in).
 try:
     import ssl
     import certifi

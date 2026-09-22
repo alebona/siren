@@ -24,7 +24,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 
-dependencies = []
+dependencies = [
+    "certifi",
+]
 
 [project.scripts]
 siren-clean = "siren.clean:main"
