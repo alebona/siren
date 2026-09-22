@@ -27,6 +27,21 @@ except ImportError:  # Python 2
 from ._cli import banner
 from ._output import safe_print
 
+# Some Python installs (notably Python 2.7 and old python.org builds on
+# macOS) don't have their SSL module wired up to the system's trusted root
+# certificates, so any HTTPS request fails with CERTIFICATE_VERIFY_FAILED
+# even though the server's certificate is perfectly valid. If `certifi`
+# happens to be installed already (very common - lots of packages pull it
+# in transitively), use its CA bundle instead of the broken default. This
+# stays optional/best-effort: siren has zero required dependencies, so we
+# only use certifi when it's already there, never require installing it.
+try:
+    import ssl
+    import certifi
+    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    _SSL_CONTEXT = None
+
 try:
     text_type = unicode  # Python 2
 except NameError:
@@ -62,7 +77,7 @@ def send(method, url, headers=None, json_body=None, data=None, timeout=10.0):
     request = _MethodRequest(url, data=body_bytes, headers=headers, method=method)
 
     try:
-        response = urlopen(request, timeout=timeout)
+        response = urlopen(request, timeout=timeout, context=_SSL_CONTEXT)
         try:
             status = response.getcode()
             reason = getattr(response, "reason", "")
