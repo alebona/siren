@@ -49,7 +49,9 @@ def _multiline_string_lines(tokens):
 
 
 def _collect_siren_lines(source):
-    lines = source.splitlines(keepends=True)
+    # Python 2's splitlines() only accepts keepends positionally, not as a
+    # keyword - splitlines(keepends=True) raises TypeError there.
+    lines = source.splitlines(True)
     marked = set()
 
     try:
@@ -120,7 +122,9 @@ def clean_file(path, dry_run=False):
     with io.open(path, "r", encoding="utf-8") as f:
         source = f.read()
 
-    lines = source.splitlines(keepends=True)
+    # Python 2's splitlines() only accepts keepends positionally, not as a
+    # keyword - splitlines(keepends=True) raises TypeError there.
+    lines = source.splitlines(True)
 
     try:
         marked = _collect_siren_lines(source)

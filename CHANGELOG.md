@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.8.1] - 2026-09-24
+
+### Fixed
+- `siren-clean` crashed with `TypeError: splitlines() takes no keyword arguments` on every run on Python 2.7 - `str.splitlines()` only accepts `keepends` positionally there, not as a keyword. Now called positionally, which works identically on both Python 2 and 3.
+
+---
+
 ## [0.8.0] - 2026-09-21
 
 ### Added
