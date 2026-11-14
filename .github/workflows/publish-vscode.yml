@@ -10,6 +10,11 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # id-token lets the Marketplace verify this workflow (Trusted Publishing),
+    # so no Marketplace token is stored in the repo.
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: vscode
@@ -45,10 +50,8 @@ jobs:
     - name: Package
       run: npx vsce package -o siren.vsix
 
-    - name: Publish to the VS Code Marketplace
-      run: npx vsce publish --packagePath siren.vsix
-      env:
-        VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    - name: Publish to the VS Code Marketplace (Trusted Publishing)
+      run: npx vsce publish --packagePath siren.vsix --oidc
 
     - name: Publish to Open VSX (VSCodium, Cursor, Windsurf)
       run: npx --yes ovsx@0.10.1 publish siren.vsix
