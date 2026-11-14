@@ -154,7 +154,10 @@ def clean_file(path, dry_run=False):
     return len(marked)
 
 
-def clean_directory(root):
+def clean_directory(root, dry_run=False):
+    if os.path.isfile(root):
+        return clean_file(root, dry_run=dry_run)
+
     total_removed = 0
 
     for base, dirs, files in os.walk(root):
@@ -164,22 +167,26 @@ def clean_directory(root):
         for name in files:
             if name.endswith(".py"):
                 path = os.path.join(base, name)
-                total_removed += clean_file(path)
+                total_removed += clean_file(path, dry_run=dry_run)
 
     return total_removed
 
 
 def main():
     try:
-        target = sys.argv[1] if len(sys.argv) > 1 else "."
-        removed = clean_directory(target)
+        args = sys.argv[1:]
+        dry_run = "--dry-run" in args
+        positional = [a for a in args if a != "--dry-run"]
+        target = positional[0] if positional else "."
+        removed = clean_directory(target, dry_run=dry_run)
         safe_print(
-            "{}[{} SIREN CLEAN {}] {}{} linhas removidas{}".format(
+            "{}[{} SIREN CLEAN {}] {}{} linhas {}{}".format(
                 COLOR,
                 EMOJI,
                 _format_timestamp(),
                 COLOR,
                 removed,
+                "encontradas" if dry_run else "removidas",
                 RESET,
             )
         )

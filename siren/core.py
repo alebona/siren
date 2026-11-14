@@ -96,6 +96,35 @@ def _print_output(text):
             pass  # Silently fail on log write errors
 
 
+# Set by the VS Code extension: path of a JSON-lines file it watches to show
+# siren() values inline in the editor.
+EDITOR_EVENTS_ENV = "SIREN_VSCODE_EVENTS"
+
+
+def _emit_editor_event(frame, name, value_text, label=None):
+    path = os.environ.get(EDITOR_EVENTS_ENV)
+    if not path or _SIREN_CONFIG["quiet"]:
+        return
+    try:
+        import json
+
+        event = {
+            "file": os.path.abspath(frame.f_code.co_filename),
+            "line": frame.f_lineno,
+            "name": _ensure_text(name),
+            "value": _ensure_text(value_text),
+            "label": label,
+            "ts": _format_timestamp(),
+        }
+        payload = json.dumps(event, ensure_ascii=True) + "\n"
+        if not isinstance(payload, text_type):
+            payload = payload.decode("utf-8")
+        with io.open(path, "a", encoding="utf-8") as f:
+            f.write(payload)
+    except Exception:
+        pass  # never let editor integration break the user's program
+
+
 def _ensure_text(value):
     """Decode byte strings to text so tokenize/io.StringIO work on Python 2,
     where source read from disk isn't decoded automatically."""
@@ -322,12 +351,13 @@ def siren(*values, **kwargs):
             name = args[i] if i < len(args) else "?"
 
             if _is_simple(v):
-                output = "{} {}{} = {}{}".format(prefix, COLOR, name, v, RESET)
+                text = v if isinstance(v, text_type) else str(v)
             else:
                 text = pprint.pformat(v)
-                output = "{} {}{} = {}{}".format(prefix, COLOR, name, text, RESET)
+            output = "{} {}{} = {}{}".format(prefix, COLOR, name, text, RESET)
 
             _print_output(output)
+            _emit_editor_event(frame, name, text, label)
 
         if timeit:
             elapsed = time.time() - start

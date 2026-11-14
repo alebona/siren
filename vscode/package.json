@@ -1,0 +1,440 @@
+{
+  "name": "siren",
+  "displayName": "Siren",
+  "description": "Print-debugging for Python without the cleanup: siren(x) values inline in the editor, one-click removal, code checks, snippets and an HTTP client.",
+  "version": "1.0.0",
+  "publisher": "alebona",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alebona/siren.git",
+    "directory": "vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/alebona/siren/issues"
+  },
+  "homepage": "https://github.com/alebona/siren/tree/main/vscode#readme",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Linters",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "python",
+    "debug",
+    "print",
+    "inline values",
+    "dotenv"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onLanguage:python",
+    "workspaceContains:**/*.py"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "siren.insert",
+        "title": "Insert siren() for Selection",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.cleanFile",
+        "title": "Remove siren() Calls from This File",
+        "category": "Siren",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "siren.cleanWorkspace",
+        "title": "Remove siren() Calls from Workspace",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.clearInlineValues",
+        "title": "Clear Inline Values",
+        "category": "Siren",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "siren.showOutput",
+        "title": "Show Captured Values",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.checkQuality",
+        "title": "Check Code Quality in Workspace",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.newFromTemplate",
+        "title": "New from Template...",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.snippets.add",
+        "title": "New Snippet (from Selection)",
+        "category": "Siren",
+        "icon": "$(add)"
+      },
+      {
+        "command": "siren.snippets.search",
+        "title": "Filter Snippets",
+        "category": "Siren",
+        "icon": "$(search)"
+      },
+      {
+        "command": "siren.snippets.refresh",
+        "title": "Refresh Snippets",
+        "category": "Siren",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "siren.snippets.export",
+        "title": "Export Snippets...",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.snippets.import",
+        "title": "Import Snippets...",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.snippets.insert",
+        "title": "Insert at Cursor",
+        "icon": "$(insert)"
+      },
+      {
+        "command": "siren.snippets.copy",
+        "title": "Copy",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "siren.snippets.edit",
+        "title": "Edit",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "siren.snippets.tags",
+        "title": "Edit Tags"
+      },
+      {
+        "command": "siren.snippets.rename",
+        "title": "Rename"
+      },
+      {
+        "command": "siren.snippets.delete",
+        "title": "Delete"
+      },
+      {
+        "command": "siren.http.new",
+        "title": "New HTTP Request",
+        "category": "Siren",
+        "icon": "$(add)"
+      },
+      {
+        "command": "siren.http.refresh",
+        "title": "Refresh Requests",
+        "category": "Siren",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "siren.http.send",
+        "title": "Send",
+        "icon": "$(play)"
+      },
+      {
+        "command": "siren.http.edit",
+        "title": "Edit",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "siren.http.delete",
+        "title": "Delete"
+      },
+      {
+        "command": "siren.http.sendFile",
+        "title": "Send Request"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "siren.insert",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "editorTextFocus && editorLangId == python"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "siren.insert",
+          "when": "editorLangId == python",
+          "group": "siren@1"
+        },
+        {
+          "command": "siren.cleanFile",
+          "when": "editorLangId == python",
+          "group": "siren@2"
+        },
+        {
+          "command": "siren.snippets.add",
+          "when": "editorHasSelection",
+          "group": "siren@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "siren.newFromTemplate",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@9"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "siren.snippets.add",
+          "when": "view == siren.snippets",
+          "group": "navigation@1"
+        },
+        {
+          "command": "siren.snippets.search",
+          "when": "view == siren.snippets",
+          "group": "navigation@2"
+        },
+        {
+          "command": "siren.snippets.refresh",
+          "when": "view == siren.snippets",
+          "group": "navigation@3"
+        },
+        {
+          "command": "siren.snippets.export",
+          "when": "view == siren.snippets",
+          "group": "more@1"
+        },
+        {
+          "command": "siren.snippets.import",
+          "when": "view == siren.snippets",
+          "group": "more@2"
+        },
+        {
+          "command": "siren.http.new",
+          "when": "view == siren.requests",
+          "group": "navigation@1"
+        },
+        {
+          "command": "siren.http.refresh",
+          "when": "view == siren.requests",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "siren.snippets.insert",
+          "when": "viewItem == sirenSnippet",
+          "group": "inline@1"
+        },
+        {
+          "command": "siren.snippets.copy",
+          "when": "viewItem == sirenSnippet",
+          "group": "inline@2"
+        },
+        {
+          "command": "siren.snippets.edit",
+          "when": "viewItem == sirenSnippet",
+          "group": "inline@3"
+        },
+        {
+          "command": "siren.snippets.tags",
+          "when": "viewItem == sirenSnippet",
+          "group": "edit@1"
+        },
+        {
+          "command": "siren.snippets.rename",
+          "when": "viewItem == sirenSnippet",
+          "group": "edit@2"
+        },
+        {
+          "command": "siren.snippets.delete",
+          "when": "viewItem == sirenSnippet",
+          "group": "edit@3"
+        },
+        {
+          "command": "siren.http.send",
+          "when": "viewItem == sirenRequest",
+          "group": "inline@1"
+        },
+        {
+          "command": "siren.http.edit",
+          "when": "viewItem == sirenRequest",
+          "group": "inline@2"
+        },
+        {
+          "command": "siren.http.delete",
+          "when": "viewItem == sirenRequest",
+          "group": "edit@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "siren.snippets.insert",
+          "when": "false"
+        },
+        {
+          "command": "siren.snippets.copy",
+          "when": "false"
+        },
+        {
+          "command": "siren.snippets.edit",
+          "when": "false"
+        },
+        {
+          "command": "siren.snippets.tags",
+          "when": "false"
+        },
+        {
+          "command": "siren.snippets.rename",
+          "when": "false"
+        },
+        {
+          "command": "siren.snippets.delete",
+          "when": "false"
+        },
+        {
+          "command": "siren.http.send",
+          "when": "false"
+        },
+        {
+          "command": "siren.http.edit",
+          "when": "false"
+        },
+        {
+          "command": "siren.http.delete",
+          "when": "false"
+        },
+        {
+          "command": "siren.http.sendFile",
+          "when": "false"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "siren",
+          "title": "Siren",
+          "icon": "media/siren.svg"
+        }
+      ]
+    },
+    "views": {
+      "siren": [
+        {
+          "id": "siren.snippets",
+          "name": "Snippets"
+        },
+        {
+          "id": "siren.requests",
+          "name": "HTTP Requests"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "siren.snippets",
+        "contents": "Save code you reuse and insert it with one click. Write {{name}} where a value changes; it becomes a field you fill in.\n[New Snippet](command:siren.snippets.add)\nTip: select code and right-click > New Snippet (from Selection)."
+      },
+      {
+        "view": "siren.requests",
+        "contents": "Send HTTP requests without leaving the editor, and save the ones you repeat.\n[New Request](command:siren.http.new)"
+      }
+    ],
+    "colors": [
+      {
+        "id": "siren.callBackground",
+        "description": "Background of lines containing siren() debug calls.",
+        "defaults": {
+          "dark": "#ff69b41a",
+          "light": "#ff69b41f",
+          "highContrast": "#ff69b433",
+          "highContrastLight": "#ff69b433"
+        }
+      },
+      {
+        "id": "siren.inlineValueForeground",
+        "description": "Color of siren() values shown at the end of the line.",
+        "defaults": {
+          "dark": "#ff8cc8",
+          "light": "#c2185b",
+          "highContrast": "#ff8cc8",
+          "highContrastLight": "#c2185b"
+        }
+      }
+    ],
+    "configuration": {
+      "title": "Siren",
+      "properties": {
+        "siren.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python interpreter Siren uses for its checks and tools. Empty uses the interpreter selected in the Python extension, then `python`."
+        },
+        "siren.injectRuntime": {
+          "type": "boolean",
+          "default": true,
+          "description": "Make `siren` available to Python programs started from VS Code terminals and the Python debugger, without installing anything."
+        },
+        "siren.inlineValues": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the last value printed by each siren() call at the end of its line."
+        },
+        "siren.highlightCalls": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight lines with siren() calls and show how many the current file has in the status bar."
+        },
+        "siren.addImport": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add `from siren import siren` when inserting a call. It isn't needed to run (siren is a builtin under VS Code) but keeps linters quiet; Remove siren() Calls strips it."
+        },
+        "siren.quality.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check Python files when they're opened or saved: unused imports and functions, bare except, leftover breakpoints, TODOs and complexity. Results go to the Problems panel."
+        },
+        "siren.quality.complexityThreshold": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "Flag functions whose cyclomatic complexity is above this number."
+        },
+        "siren.envCheck.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Compare .env with .env.example at the root of each workspace folder and mark keys missing from either one."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "copy-runtime": "node scripts/copy-runtime.mjs",
+    "compile": "npm run copy-runtime && tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "npm run compile && node --test \"out/test/*.test.js\"",
+    "vscode:prepublish": "npm run compile",
+    "test:integration": "npm run compile && node out/integration/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "@types/vscode": "1.85.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "3.2.1",
+    "typescript": "5.6.3"
+  }
+}

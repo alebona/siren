@@ -431,3 +431,55 @@ class TestSirenCore(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEditorEvents(unittest.TestCase):
+    def setUp(self):
+        fd, self.events_path = tempfile.mkstemp(suffix=".jsonl")
+        os.close(fd)
+        self.env = mock.patch.dict(os.environ, {core.EDITOR_EVENTS_ENV: self.events_path})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        os.remove(self.events_path)
+
+    def _events(self):
+        import json
+        with io.open(self.events_path, encoding="utf-8") as f:
+            return [json.loads(line) for line in f if line.strip()]
+
+    def test_siren_call_writes_event_with_file_line_and_value(self):
+        value = {"a": 1}
+        with mock.patch("sys.stdout", new_callable=io.StringIO):
+            core.siren(value, label="L"); line = sys._getframe().f_lineno
+        events = self._events()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["file"], os.path.abspath(__file__))
+        self.assertEqual(events[0]["line"], line)
+        self.assertEqual(events[0]["name"], "value")
+        self.assertEqual(events[0]["value"], "{'a': 1}")
+        self.assertEqual(events[0]["label"], "L")
+
+    def test_quiet_call_writes_no_event(self):
+        core.siren(1, quiet=True)
+        self.assertEqual(self._events(), [])
+
+    def test_no_event_without_env_var(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with mock.patch("sys.stdout", new_callable=io.StringIO):
+                core.siren(1)
+        self.assertEqual(self._events(), [])
+
+
+class TestCleanSingleFile(unittest.TestCase):
+    def test_clean_directory_accepts_a_file_path(self):
+        fd, path = tempfile.mkstemp(suffix=".py")
+        with os.fdopen(fd, "w") as f:
+            f.write("x = 1\nsiren(x)\n")
+        try:
+            self.assertEqual(clean.clean_directory(path), 1)
+            with io.open(path, encoding="utf-8") as f:
+                self.assertEqual(f.read(), "x = 1\n")
+        finally:
+            os.remove(path)
