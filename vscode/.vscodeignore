@@ -1,0 +1,11 @@
+src/**
+scripts/**
+out/test/**
+**/*.map
+**/__pycache__/**
+**/*.pyc
+tsconfig.json
+node_modules/**
+.gitignore
+out/integration/**
+.vscode-test/**

@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+      # vscode-v* also starts with "v": those are VS Code extension releases
+      # (publish-vscode.yml) and must not publish siren-debug to PyPI.
+      - '!vscode-v*'
 
 jobs:
   build-and-publish:

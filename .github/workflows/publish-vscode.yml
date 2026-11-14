@@ -1,0 +1,62 @@
+name: Publish VS Code extension
+
+# Tags for the extension are vscode-v<version> (e.g. vscode-v1.0.0).
+# Plain v<version> tags publish the siren-debug Python package (publish.yml),
+# which excludes vscode-v* explicitly.
+on:
+  push:
+    tags:
+      - 'vscode-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # id-token lets the Marketplace verify this workflow (Trusted Publishing),
+    # so no Marketplace token is stored in the repo.
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: vscode
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: vscode/package-lock.json
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Check the tag matches package.json
+      run: |
+        expected="vscode-v$(node -p "require('./package.json').version")"
+        if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+          echo "Tag $GITHUB_REF_NAME does not match package.json ($expected)"; exit 1
+        fi
+
+    - name: Test
+      run: |
+        npm test
+        xvfb-run -a npm run test:integration
+
+    - name: Package
+      run: npx vsce package -o siren.vsix
+
+    - name: Publish to the VS Code Marketplace (Trusted Publishing)
+      run: npx vsce publish --packagePath siren.vsix --oidc
+
+    # Skipped until the OVSX_PAT secret is added to the repository.
+    - name: Publish to Open VSX (VSCodium, Cursor, Windsurf)
+      if: ${{ env.OVSX_PAT != '' }}
+      run: npx --yes ovsx@0.10.1 publish siren.vsix
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
