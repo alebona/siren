@@ -54,7 +54,9 @@ jobs:
     - name: Publish to the VS Code Marketplace (Trusted Publishing)
       run: npx vsce publish --packagePath siren.vsix --oidc
 
+    # Skipped until the OVSX_PAT secret is added to the repository.
     - name: Publish to Open VSX (VSCodium, Cursor, Windsurf)
+      if: ${{ env.OVSX_PAT != '' }}
       run: npx --yes ovsx@0.10.1 publish siren.vsix
-      env:
-        OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
