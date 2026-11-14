@@ -1,7 +1,8 @@
 name: Publish VS Code extension
 
 # Tags for the extension are vscode-v<version> (e.g. vscode-v1.0.0).
-# Plain v* tags still publish the siren-debug Python package (publish.yml).
+# Plain v<version> tags publish the siren-debug Python package (publish.yml),
+# which excludes vscode-v* explicitly.
 on:
   push:
     tags:
