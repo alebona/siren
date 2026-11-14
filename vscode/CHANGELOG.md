@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Siren now has its own icon in the Marketplace and the Extensions panel.
+
 ## 1.0.0
 
 First release of Siren as a VS Code extension. Everything the `siren-debug` Python package did now works inside the editor, with nothing to `pip install`.
