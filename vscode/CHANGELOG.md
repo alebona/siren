@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- New icon: a glowing mermaid tail rising from the water.
+
 ## 1.0.1
 
 - Siren now has its own icon in the Marketplace and the Extensions panel.
