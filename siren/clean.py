@@ -116,6 +116,62 @@ def _collect_siren_lines(source):
     return marked
 
 
+def _compiles(source, path):
+    try:
+        compile(source, path, "exec")
+        return True
+    except SyntaxError:
+        return False
+
+
+def _runs(marked):
+    """Group line numbers into runs of consecutive lines (one multi-line call = one run)."""
+    runs = []
+    for lineno in sorted(marked):
+        if runs and lineno == runs[-1][-1] + 1:
+            runs[-1].append(lineno)
+        else:
+            runs.append([lineno])
+    return runs
+
+
+def _rebuild(lines, marked, placeholders):
+    """Source without the marked lines; a run starting at a line in
+    `placeholders` is replaced by `pass` at that line's indentation."""
+    out = []
+    for lineno, line in enumerate(lines, 1):
+        if lineno not in marked:
+            out.append(line)
+        elif lineno in placeholders:
+            body = line.rstrip("\r\n")
+            ending = line[len(body):]
+            indent = body[:len(body) - len(body.lstrip())]
+            out.append(indent + "pass" + ending)
+    return "".join(out)
+
+
+def _remove_lines(lines, marked, path):
+    """
+    Remove the marked lines. When that would leave a block empty (a loop or
+    if whose only line was siren(...)), keep a `pass` where the call was -
+    only where one is needed. Returns None if no version compiles.
+    """
+    source = _rebuild(lines, marked, set())
+    if _compiles(source, path):
+        return source
+
+    placeholders = set(run[0] for run in _runs(marked))
+    if not _compiles(_rebuild(lines, marked, placeholders), path):
+        return None
+
+    for start in sorted(placeholders):
+        trial = placeholders - set([start])
+        if _compiles(_rebuild(lines, marked, trial), path):
+            placeholders = trial
+
+    return _rebuild(lines, marked, placeholders)
+
+
 def clean_file(path, dry_run=False):
     # io.open decodes/encodes explicitly on both Python 2 and 3, unlike the
     # builtin open() which doesn't accept encoding= on Python 2.
@@ -138,14 +194,10 @@ def clean_file(path, dry_run=False):
         safe_print("✓ {} ({} linhas)".format(path, len(marked)))
         return len(marked)
 
-    new_lines = [line for lineno, line in enumerate(lines, start=1) if lineno not in marked]
-    new_source = "".join(new_lines)
-
-    try:
-        compile(new_source, path, "exec")
-    except SyntaxError:
-        # Removing these lines would leave invalid Python (e.g. an emptied
-        # block). Leave the file untouched rather than corrupting it.
+    new_source = _remove_lines(lines, marked, path)
+    if new_source is None:
+        # Not even placeholders give valid Python. Leave the file untouched
+        # rather than corrupting it.
         return 0
 
     with io.open(path, "w", encoding="utf-8") as f:

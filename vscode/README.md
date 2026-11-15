@@ -19,7 +19,7 @@ for i in range(3):
 
 **Highlighted calls.** Lines with `siren(...)` or `@siren.*` decorators are tinted and marked in the scrollbar, and the status bar shows how many the current file has, so none slip into a commit.
 
-**Remove them all.** `Siren: Remove siren() Calls from This File` (or click the status bar count) and `Siren: Remove siren() Calls from Workspace` delete the calls and their imports. The workspace command first lists the files that will change. A file is left as is when removing its calls would leave invalid Python, such as a loop whose only line is `siren(i)`.
+**Remove them all.** `Siren: Remove siren() Calls from This File` (or click the status bar count) and `Siren: Remove siren() Calls from Workspace` delete the calls and their imports. The workspace command first lists the files that will change. When a call is the only line in a block, such as a loop whose body is just `siren(i)`, Siren leaves a `pass` in its place so the code stays valid.
 
 The rest of the API works too: `@siren.trace` logs a function's calls and return values, `siren.diff(a, b)` shows what changed between two objects, `siren.memory()` prints memory use, `with siren.catch():` prints a readable traceback, and `siren.breakpoint()` pauses and lists local variables.
 

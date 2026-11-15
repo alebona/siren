@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Removing `siren()` calls no longer skips a file when a call is the only line in a block (for example `for i in x: siren(i)`). Siren leaves a `pass` there and removes everything else; before, the whole file was left untouched.
+
 ## 1.0.2
 
 - New icon: a glowing mermaid tail rising from the water.

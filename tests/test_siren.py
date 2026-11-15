@@ -110,25 +110,74 @@ class TestSirenCleaner(unittest.TestCase):
         self.assertEqual(removed, 0)
         self.assertIn("from siren import siren", result)
 
-    def test_clean_file_leaves_file_untouched_if_removal_would_break_syntax(self):
-        source = """
+    def _clean(self, source):
+        path = self._write_temp_file(source)
+        removed = clean.clean_file(path)
+        result = self._read(path)
+        os.unlink(path)
+        return removed, result
+
+    def test_clean_file_keeps_pass_when_removal_would_empty_a_block(self):
+        removed, result = self._clean("""
             def debug_only():
                 siren(x)
 
             print('after')
-        """
+        """)
 
-        path = self._write_temp_file(source)
-        original = self._read(path)
+        self.assertEqual(removed, 1)
+        self.assertEqual(result, "\ndef debug_only():\n    pass\n\nprint('after')\n")
 
+    def test_clean_file_loop_with_only_a_siren_call(self):
+        # The README/guide example: the loop body is only siren(...).
+        removed, result = self._clean("""\
+            usuario = {"nome": "Ana", "itens": [1, 2, 3]}
+            siren(usuario)
+
+            for i in range(3):
+                siren(i, label="loop")
+        """)
+
+        self.assertEqual(removed, 2)
+        self.assertEqual(result, 'usuario = {"nome": "Ana", "itens": [1, 2, 3]}\n\nfor i in range(3):\n    pass\n')
+
+    def test_clean_file_adds_pass_only_where_needed(self):
+        removed, result = self._clean("""\
+            from siren import siren
+            if a:
+                siren(a)
+            else:
+                b = 1
+                siren(b)
+        """)
+
+        self.assertEqual(removed, 3)
+        self.assertEqual(result, "if a:\n    pass\nelse:\n    b = 1\n")
+
+    def test_clean_file_multiline_call_becomes_one_pass(self):
+        removed, result = self._clean("""\
+            while True:
+                siren(
+                    x,
+                    label="multi",
+                )
+            print('done')
+        """)
+
+        self.assertEqual(removed, 4)
+        self.assertEqual(result, "while True:\n    pass\nprint('done')\n")
+
+    def test_clean_file_handles_crlf_line_endings(self):
+        path = self._write_temp_file("")
+        with io.open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(u"for i in x:\r\n    siren(i)\r\n")
         removed = clean.clean_file(path)
-
-        result = self._read(path)
-
+        with io.open(path, encoding="utf-8", newline="") as f:
+            result = f.read()
         os.unlink(path)
 
-        self.assertEqual(removed, 0)
-        self.assertEqual(result, original)
+        self.assertEqual(removed, 1)
+        self.assertEqual(result, u"for i in x:\r\n    pass\r\n")
 
     def _read(self, path):
         with open(path, encoding="utf-8") as f:
