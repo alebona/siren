@@ -6,6 +6,7 @@
 - The Siren icon in the activity bar shows how many calls the workspace has.
 - **Run current file** (▶ at the top of Python editors, the Actions panel, or `Siren: Run Python File with Siren`): runs the file in a new terminal with Siren loaded, so its values show up with no setup.
 - **Check this file**: code quality for the current file only (Actions panel, right-click menu, or `Siren: Check Code Quality in This File`), next to the existing workspace check.
+- **Snippets form**: create or edit a snippet in one screen (name, tags and code together), saved with the button or Ctrl+S. **+** opens it empty or with the editor's selection; the pencil opens a snippet to edit, rename or retag. Replaces the chain of prompts and the separate Edit Tags and Rename menu items.
 - **Check .env** with only one of the two files offers to create the other: a `.env.example` with the same keys and no values (no secrets copied), or a `.env` from the example.
 - **Show captured values** explains why the list is empty when nothing has been captured yet, and offers to run the current file.
 - The status bar shows this file's count and the workspace's (`🧜 2 · 7`). With none in the current file, it shows the workspace total and opens the Calls list.

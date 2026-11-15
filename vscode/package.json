@@ -141,14 +141,6 @@
         "icon": "$(edit)"
       },
       {
-        "command": "siren.snippets.tags",
-        "title": "Edit Tags"
-      },
-      {
-        "command": "siren.snippets.rename",
-        "title": "Rename"
-      },
-      {
         "command": "siren.snippets.delete",
         "title": "Delete"
       },
@@ -303,19 +295,9 @@
           "group": "inline@3"
         },
         {
-          "command": "siren.snippets.tags",
-          "when": "viewItem == sirenSnippet",
-          "group": "edit@1"
-        },
-        {
-          "command": "siren.snippets.rename",
-          "when": "viewItem == sirenSnippet",
-          "group": "edit@2"
-        },
-        {
           "command": "siren.snippets.delete",
           "when": "viewItem == sirenSnippet",
-          "group": "edit@3"
+          "group": "edit@1"
         },
         {
           "command": "siren.http.send",
@@ -344,14 +326,6 @@
         },
         {
           "command": "siren.snippets.edit",
-          "when": "false"
-        },
-        {
-          "command": "siren.snippets.tags",
-          "when": "false"
-        },
-        {
-          "command": "siren.snippets.rename",
           "when": "false"
         },
         {
