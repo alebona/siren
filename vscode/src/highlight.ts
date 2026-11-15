@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
 import { findSirenLines } from "./sirenCalls";
+import { WorkspaceCalls } from "./workspaceCalls";
 
-/** Highlights siren() lines and shows the active file's count in the status bar. */
+/**
+ * Highlights siren() lines and shows the counts in the status bar: this
+ * file's and the whole workspace's ("🧜 2 · 7").
+ */
 export class CallHighlighter implements vscode.Disposable {
   private readonly decoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
@@ -13,9 +17,9 @@ export class CallHighlighter implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private timer: NodeJS.Timeout | undefined;
 
-  constructor() {
-    this.status.command = "siren.cleanFile";
+  constructor(private readonly workspace: WorkspaceCalls) {
     this.disposables.push(
+      workspace.onDidChange(() => this.schedule()),
       vscode.window.onDidChangeVisibleTextEditors(() => this.schedule()),
       vscode.window.onDidChangeActiveTextEditor(() => this.schedule()),
       vscode.workspace.onDidChangeTextDocument(() => this.schedule()),
@@ -44,11 +48,24 @@ export class CallHighlighter implements vscode.Disposable {
     }
 
     const active = vscode.window.activeTextEditor;
-    const count =
+    const here =
       on && active?.document.languageId === "python" ? findSirenLines(active.document.getText()).length : 0;
-    if (count > 0) {
-      this.status.text = `🧜 ${count}`;
-      this.status.tooltip = `${count} line${count === 1 ? "" : "s"} with siren() in this file. Click to remove them.`;
+    const total = on ? Math.max(this.workspace.total(), here) : 0;
+    const plural = (n: number) => `${n} siren() call${n === 1 ? "" : "s"}`;
+    if (here > 0) {
+      // Click removes this file's calls, as before.
+      this.status.text = total > here ? `🧜 ${here} · ${total}` : `🧜 ${here}`;
+      this.status.tooltip =
+        `${plural(here)} in this file` +
+        (total > here ? `, ${total} in the workspace (see Siren → Calls)` : "") +
+        ". Click to remove this file's calls.";
+      this.status.command = "siren.cleanFile";
+      this.status.show();
+    } else if (total > 0) {
+      // Nothing in this file, but some elsewhere: click lists them.
+      this.status.text = `🧜 ${total}`;
+      this.status.tooltip = `${plural(total)} in the workspace, none in this file. Click to see them.`;
+      this.status.command = "siren.calls.focus";
       this.status.show();
     } else {
       this.status.hide();

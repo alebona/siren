@@ -5,7 +5,7 @@ import { EnvChecker } from "./envCheck";
 import { CallHighlighter } from "./highlight";
 import { RequestsView } from "./http";
 import { InlineValues } from "./inlineValues";
-import { runModule } from "./python";
+import { resolvePython, runModule } from "./python";
 import { QualityChecker } from "./quality";
 import { Runtime } from "./runtime";
 import { newFromTemplate } from "./scaffold";
@@ -17,6 +17,7 @@ import {
   parseRemovedCount,
 } from "./sirenCalls";
 import { SnippetsView } from "./snippets";
+import { CallsView, WorkspaceCalls } from "./workspaceCalls";
 
 export function activate(context: vscode.ExtensionContext): void {
   const runtime = new Runtime(context);
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const inline = new InlineValues(runtime.eventsFile, output);
   const quality = new QualityChecker(runtime);
   const env = new EnvChecker();
+  const calls = new WorkspaceCalls();
 
   context.subscriptions.push(
     runtime,
@@ -31,7 +33,12 @@ export function activate(context: vscode.ExtensionContext): void {
     inline,
     quality,
     env,
-    new CallHighlighter(),
+    calls,
+    new CallHighlighter(calls),
+    new CallsView(calls, inline),
+    // Internal: lets the integration tests read the workspace total.
+    vscode.commands.registerCommand("siren._workspaceCallCount", () => calls.total()),
+    vscode.commands.registerCommand("siren._capturedCount", () => inline.captured),
     vscode.window.registerTreeDataProvider("siren.actions", new ActionsView()),
     vscode.commands.registerCommand("siren.checkEnv", () => env.report()),
     new SnippetsView(runtime),
@@ -40,13 +47,56 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("siren.cleanFile", () => cleanFile(runtime)),
     vscode.commands.registerCommand("siren.cleanWorkspace", () => cleanWorkspace(runtime)),
     vscode.commands.registerCommand("siren.clearInlineValues", () => inline.clear()),
-    vscode.commands.registerCommand("siren.showOutput", () => output.show()),
+    vscode.commands.registerCommand("siren.showOutput", () => showCapturedValues(inline, output)),
+    vscode.commands.registerCommand("siren.runFile", (uri?: vscode.Uri) => runFile(runtime, uri)),
     vscode.commands.registerCommand("siren.checkQuality", () => quality.checkWorkspace()),
+    vscode.commands.registerCommand("siren.checkQualityFile", () => quality.checkActiveFile()),
     vscode.commands.registerCommand("siren.newFromTemplate", (uri?: vscode.Uri) => newFromTemplate(runtime, uri)),
   );
 }
 
 export function deactivate(): void {}
+
+async function showCapturedValues(inline: InlineValues, output: vscode.OutputChannel): Promise<void> {
+  output.show(true);
+  if (inline.captured > 0) {
+    return;
+  }
+  // An empty channel looks broken: say why, and offer the one-click way in.
+  const run = "Run Current File";
+  const choice = await vscode.window.showInformationMessage(
+    "Siren hasn't captured any values yet. Values come from Python programs started in a VS Code terminal opened after Siren loaded, or with F5. Programs run elsewhere (an older terminal, an external one, or by Claude Code) don't report here.",
+    run,
+  );
+  if (choice === run) {
+    await vscode.commands.executeCommand("siren.runFile");
+  }
+}
+
+/** Run a Python file in a new terminal with the Siren runtime, so its values show up. */
+async function runFile(runtime: Runtime, uri?: vscode.Uri): Promise<void> {
+  const doc =
+    (uri && (await vscode.workspace.openTextDocument(uri))) ||
+    (vscode.window.activeTextEditor?.document.languageId === "python" ? vscode.window.activeTextEditor.document : undefined);
+  if (!doc || doc.languageId !== "python" || doc.isUntitled) {
+    vscode.window.showInformationMessage("Siren: open a saved Python file to run it.");
+    return;
+  }
+  if (doc.isDirty) {
+    await doc.save();
+  }
+  const python = await resolvePython(doc.uri);
+  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  // Runs python directly (no shell), so paths with spaces need no quoting.
+  const terminal = vscode.window.createTerminal({
+    name: `Siren: ${path.basename(doc.uri.fsPath)}`,
+    shellPath: python,
+    shellArgs: [doc.uri.fsPath],
+    cwd: folder?.uri.fsPath ?? path.dirname(doc.uri.fsPath),
+    env: runtime.env(),
+  });
+  terminal.show(true);
+}
 
 async function insertSiren(): Promise<void> {
   const editor = vscode.window.activeTextEditor;

@@ -37,7 +37,7 @@ Right-click a folder in the Explorer and pick **New from Template...** to create
 
 ## Snippets
 
-The Siren sidebar keeps the code you reuse. Click a snippet to insert it at the cursor. Write `{{name}}` where a value changes: it becomes a field you fill in and move through with Tab. Select code and right-click **New Snippet (from Selection)** to save it. Snippets can be tagged, filtered, edited as plain files, and exported or imported as JSON.
+The Siren sidebar keeps the code you reuse. Click a snippet to insert it at the cursor. **+** opens a form with the name, tags and code together (pre-filled with your selection, if any); the pencil opens the same form to edit one. Write `{{name}}` where a value changes: it becomes a field you fill in and move through with Tab. Snippets can be filtered, copied, and exported or imported as JSON.
 
 ## HTTP requests
 

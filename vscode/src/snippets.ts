@@ -3,7 +3,8 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { callBridge } from "./python";
 import { Runtime } from "./runtime";
-import { parseTags, toSnippetSyntax, validateName } from "./snippetText";
+import { SnippetData, SnippetForm, SnippetFormHandlers } from "./snippetForm";
+import { toSnippetSyntax } from "./snippetText";
 
 interface Snippet {
   name: string;
@@ -39,9 +40,7 @@ export class SnippetsView implements vscode.TreeDataProvider<Snippet>, vscode.Di
       vscode.commands.registerCommand("siren.snippets.add", () => this.add()),
       vscode.commands.registerCommand("siren.snippets.insert", (s: Snippet) => this.insert(s)),
       vscode.commands.registerCommand("siren.snippets.copy", (s: Snippet) => this.copy(s)),
-      vscode.commands.registerCommand("siren.snippets.edit", (s: Snippet) => vscode.window.showTextDocument(vscode.Uri.file(s.path))),
-      vscode.commands.registerCommand("siren.snippets.tags", (s: Snippet) => this.editTags(s)),
-      vscode.commands.registerCommand("siren.snippets.rename", (s: Snippet) => this.rename(s)),
+      vscode.commands.registerCommand("siren.snippets.edit", (s: Snippet) => SnippetForm.show(this.formHandlers(), s)),
       vscode.commands.registerCommand("siren.snippets.delete", (s: Snippet) => this.remove(s)),
       vscode.commands.registerCommand("siren.snippets.export", () => this.exportAll()),
       vscode.commands.registerCommand("siren.snippets.import", () => this.importAll()),
@@ -112,59 +111,66 @@ export class SnippetsView implements vscode.TreeDataProvider<Snippet>, vscode.Di
     vscode.window.setStatusBarMessage(`Siren: copied "${s.name}"`, 3000);
   }
 
-  private async add(): Promise<void> {
+  /** New snippet in the form, pre-filled with the editor's selection if any. */
+  private add(): void {
     const editor = vscode.window.activeTextEditor;
     const selected = editor && !editor.selection.isEmpty ? editor.document.getText(editor.selection) : "";
-    const name = await vscode.window.showInputBox({
-      title: selected ? "Save selection as snippet" : "New snippet",
-      prompt: "Name. Use {{name}} in the content for fields you fill in when inserting.",
-      validateInput: validateName,
-    });
-    if (!name) {
-      return;
-    }
-    const tags = await vscode.window.showInputBox({ title: `Tags for "${name}"`, prompt: "Comma-separated, optional", placeHolder: "sql, django" });
-    if (tags === undefined) {
-      return;
-    }
-    const saved = await this.save(name, selected, parseTags(tags));
-    if (saved && !selected) {
-      await vscode.window.showTextDocument(vscode.Uri.file(saved));
-    }
+    SnippetForm.show(this.formHandlers(), undefined, selected);
   }
 
-  private async save(name: string, content: string, tags: string[]): Promise<string | undefined> {
+  private formHandlers(): SnippetFormHandlers {
+    return {
+      save: (data, original) => this.saveFromForm(data, original),
+      remove: async (name) => {
+        const choice = await vscode.window.showWarningMessage(`Delete snippet "${name}"?`, { modal: true }, "Delete");
+        if (choice !== "Delete") {
+          return false;
+        }
+        return (await this.run("snippets_remove", { name })) !== undefined;
+      },
+    };
+  }
+
+  /** Returns a message for the form when the save can't go ahead, undefined when saved. */
+  private async saveFromForm(data: SnippetData, original: string | undefined): Promise<string | undefined> {
+    const exists = /already exists/;
     try {
-      const file = await callBridge<string>(this.runtime, "snippets_save", { name, content, tags });
-      this.refresh();
-      return file;
+      if (original === undefined) {
+        try {
+          await callBridge(this.runtime, "snippets_save", { ...data });
+        } catch (error) {
+          if (!exists.test((error as Error).message)) {
+            throw error;
+          }
+          const choice = await vscode.window.showWarningMessage(
+            `A snippet named "${data.name}" already exists. Replace it?`,
+            { modal: true },
+            "Replace",
+          );
+          if (choice !== "Replace") {
+            return `A snippet named "${data.name}" already exists. Pick another name.`;
+          }
+          await callBridge(this.runtime, "snippets_save", { ...data, force: true });
+        }
+      } else {
+        if (data.name !== original) {
+          try {
+            await callBridge(this.runtime, "snippets_rename", { old: original, new: data.name });
+          } catch (error) {
+            if (exists.test((error as Error).message)) {
+              return `A snippet named "${data.name}" already exists. Pick another name.`;
+            }
+            throw error;
+          }
+        }
+        await callBridge(this.runtime, "snippets_save", { ...data, force: true });
+      }
     } catch (error) {
-      if (!/already exists/.test((error as Error).message)) {
-        vscode.window.showErrorMessage(`Siren: ${(error as Error).message}`);
-        return undefined;
-      }
-      const choice = await vscode.window.showWarningMessage(`A snippet named "${name}" already exists.`, { modal: true }, "Replace");
-      if (choice !== "Replace") {
-        return undefined;
-      }
-      const file = await callBridge<string>(this.runtime, "snippets_save", { name, content, tags, force: true });
+      return (error as Error).message;
+    } finally {
       this.refresh();
-      return file;
     }
-  }
-
-  private async editTags(s: Snippet): Promise<void> {
-    const input = await vscode.window.showInputBox({ title: `Tags for "${s.name}"`, prompt: "Comma-separated", value: s.tags.join(", ") });
-    if (input !== undefined) {
-      await this.run("snippets_set_tags", { name: s.name, tags: parseTags(input) });
-    }
-  }
-
-  private async rename(s: Snippet): Promise<void> {
-    const name = await vscode.window.showInputBox({ title: `Rename "${s.name}"`, value: s.name, validateInput: validateName });
-    if (name && name !== s.name) {
-      await this.run("snippets_rename", { old: s.name, new: name });
-    }
+    return undefined;
   }
 
   private async remove(s: Snippet): Promise<void> {

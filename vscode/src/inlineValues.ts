@@ -14,10 +14,12 @@ interface SirenEvent {
 
 const HISTORY = 5;
 
-function key(file: string): string {
+/** Same file, same key: Windows paths are case-insensitive. */
+export function fileKey(file: string): string {
   const normalized = path.normalize(file);
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
+const key = fileKey;
 
 /**
  * Tails the events file the Python runtime appends to and shows each
@@ -35,8 +37,19 @@ export class InlineValues implements vscode.Disposable {
   /** file key -> 1-based line -> recent events (newest last) */
   private readonly values = new Map<string, Map<number, SirenEvent[]>>();
   private readonly disposables: vscode.Disposable[] = [];
+  private readonly changed = new vscode.EventEmitter<void>();
+  /** Fires when captured values are added or cleared. */
+  readonly onDidChange = this.changed.event;
   private offset = 0;
   private partial = "";
+  /** How many values have been captured since VS Code started. */
+  captured = 0;
+
+  /** Latest value captured at a 1-based line of a file, if that line has run. */
+  lastValue(file: string, line: number): { name: string; value: string } | undefined {
+    const history = this.values.get(key(file))?.get(line);
+    return history?.[history.length - 1];
+  }
 
   constructor(
     private readonly eventsFile: string,
@@ -112,6 +125,7 @@ export class InlineValues implements vscode.Disposable {
       history.shift();
     }
     fileValues.set(event.line, history);
+    this.captured++;
 
     const label = event.label ? ` [${event.label}]` : "";
     this.output.appendLine(
@@ -120,6 +134,7 @@ export class InlineValues implements vscode.Disposable {
   }
 
   private render(): void {
+    this.changed.fire();
     const show = vscode.workspace.getConfiguration("siren").get<boolean>("inlineValues", true);
     for (const editor of vscode.window.visibleTextEditors) {
       const fileValues = show ? this.values.get(key(editor.document.uri.fsPath)) : undefined;
@@ -151,6 +166,7 @@ export class InlineValues implements vscode.Disposable {
   dispose(): void {
     fs.unwatchFile(this.eventsFile);
     this.decoration.dispose();
+    this.changed.dispose();
     this.disposables.forEach((d) => d.dispose());
   }
 }

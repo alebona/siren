@@ -19,6 +19,7 @@ export const GROUPS: Group[] = [
     icon: "debug-alt",
     actions: [
       { label: "Insert siren()", description: "Ctrl+Alt+S", icon: "add", command: "siren.insert" },
+      { label: "Run current file", description: "values show inline", icon: "play", command: "siren.runFile" },
       { label: "Show captured values", icon: "output", command: "siren.showOutput" },
       { label: "Clear inline values", icon: "clear-all", command: "siren.clearInlineValues" },
     ],
@@ -35,7 +36,8 @@ export const GROUPS: Group[] = [
     label: "Code",
     icon: "code",
     actions: [
-      { label: "Check code quality", description: "Problems panel", icon: "checklist", command: "siren.checkQuality" },
+      { label: "Check this file", description: "code quality", icon: "file-code", command: "siren.checkQualityFile" },
+      { label: "Check workspace", description: "code quality", icon: "checklist", command: "siren.checkQuality" },
       { label: "Check .env", description: "vs .env.example", icon: "symbol-key", command: "siren.checkEnv" },
       { label: "New from template...", icon: "new-file", command: "siren.newFromTemplate" },
     ],

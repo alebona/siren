@@ -2,7 +2,7 @@
   "name": "siren",
   "displayName": "Siren",
   "description": "Print-debugging for Python without the cleanup: siren(x) values inline in the editor, one-click removal, code checks, snippets and an HTTP client.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "alebona",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -57,7 +57,8 @@
       {
         "command": "siren.cleanWorkspace",
         "title": "Remove siren() Calls from Workspace",
-        "category": "Siren"
+        "category": "Siren",
+        "icon": "$(trash)"
       },
       {
         "command": "siren.clearInlineValues",
@@ -71,8 +72,19 @@
         "category": "Siren"
       },
       {
+        "command": "siren.runFile",
+        "title": "Run Python File with Siren",
+        "category": "Siren",
+        "icon": "$(play)"
+      },
+      {
         "command": "siren.checkQuality",
         "title": "Check Code Quality in Workspace",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.checkQualityFile",
+        "title": "Check Code Quality in This File",
         "category": "Siren"
       },
       {
@@ -129,14 +141,6 @@
         "icon": "$(edit)"
       },
       {
-        "command": "siren.snippets.tags",
-        "title": "Edit Tags"
-      },
-      {
-        "command": "siren.snippets.rename",
-        "title": "Rename"
-      },
-      {
         "command": "siren.snippets.delete",
         "title": "Delete"
       },
@@ -149,6 +153,12 @@
       {
         "command": "siren.http.refresh",
         "title": "Refresh Requests",
+        "category": "Siren",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "siren.calls.refresh",
+        "title": "Rescan siren() Calls",
         "category": "Siren",
         "icon": "$(refresh)"
       },
@@ -180,7 +190,24 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "siren.runFile",
+          "when": "editorLangId == python && resourceScheme == file",
+          "group": "navigation@90"
+        }
+      ],
       "editor/context": [
+        {
+          "command": "siren.runFile",
+          "when": "editorLangId == python && resourceScheme == file",
+          "group": "siren@0"
+        },
+        {
+          "command": "siren.checkQualityFile",
+          "when": "editorLangId == python && resourceScheme == file",
+          "group": "siren@4"
+        },
         {
           "command": "siren.insert",
           "when": "editorLangId == python",
@@ -239,6 +266,16 @@
           "command": "siren.http.refresh",
           "when": "view == siren.requests",
           "group": "navigation@2"
+        },
+        {
+          "command": "siren.cleanWorkspace",
+          "when": "view == siren.calls",
+          "group": "navigation@1"
+        },
+        {
+          "command": "siren.calls.refresh",
+          "when": "view == siren.calls",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -258,19 +295,9 @@
           "group": "inline@3"
         },
         {
-          "command": "siren.snippets.tags",
-          "when": "viewItem == sirenSnippet",
-          "group": "edit@1"
-        },
-        {
-          "command": "siren.snippets.rename",
-          "when": "viewItem == sirenSnippet",
-          "group": "edit@2"
-        },
-        {
           "command": "siren.snippets.delete",
           "when": "viewItem == sirenSnippet",
-          "group": "edit@3"
+          "group": "edit@1"
         },
         {
           "command": "siren.http.send",
@@ -299,14 +326,6 @@
         },
         {
           "command": "siren.snippets.edit",
-          "when": "false"
-        },
-        {
-          "command": "siren.snippets.tags",
-          "when": "false"
-        },
-        {
-          "command": "siren.snippets.rename",
           "when": "false"
         },
         {
@@ -347,6 +366,10 @@
           "name": "Actions"
         },
         {
+          "id": "siren.calls",
+          "name": "Calls"
+        },
+        {
           "id": "siren.snippets",
           "name": "Snippets"
         },
@@ -357,6 +380,10 @@
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "siren.calls",
+        "contents": "No siren() calls in this workspace. Put the cursor on a variable and press Ctrl+Alt+S to add one."
+      },
       {
         "view": "siren.snippets",
         "contents": "Save code you reuse and insert it with one click. Write {{name}} where a value changes; it becomes a field you fill in.\n[New Snippet](command:siren.snippets.add)\nTip: select code and right-click > New Snippet (from Selection)."

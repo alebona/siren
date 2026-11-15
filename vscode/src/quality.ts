@@ -63,6 +63,30 @@ export class QualityChecker implements vscode.Disposable {
     return total;
   }
 
+  /** Check the active Python file now and say what was found. */
+  async checkActiveFile(): Promise<void> {
+    const doc = vscode.window.activeTextEditor?.document;
+    if (!doc || doc.languageId !== "python" || doc.isUntitled) {
+      vscode.window.showInformationMessage("Siren: open a saved Python file to check it.");
+      return;
+    }
+    if (doc.isDirty) {
+      await doc.save(); // the check reads the file from disk
+    }
+    const name = doc.uri.path.split("/").pop();
+    try {
+      const total = await this.check(doc.uri.fsPath);
+      if (total === 0) {
+        vscode.window.showInformationMessage(`Siren: no code quality issues in ${name}.`);
+      } else {
+        vscode.commands.executeCommand("workbench.actions.view.problems");
+        vscode.window.setStatusBarMessage(`Siren: ${total} issue${total === 1 ? "" : "s"} in ${name}`, 5000);
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Siren: couldn't check ${name}: ${(error as Error).message}`);
+    }
+  }
+
   async checkWorkspace(): Promise<void> {
     const folders = vscode.workspace.workspaceFolders ?? [];
     if (!folders.length) {
