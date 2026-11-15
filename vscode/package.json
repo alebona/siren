@@ -72,6 +72,12 @@
         "category": "Siren"
       },
       {
+        "command": "siren.runFile",
+        "title": "Run Python File with Siren",
+        "category": "Siren",
+        "icon": "$(play)"
+      },
+      {
         "command": "siren.checkQuality",
         "title": "Check Code Quality in Workspace",
         "category": "Siren"
@@ -187,7 +193,19 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "siren.runFile",
+          "when": "editorLangId == python && resourceScheme == file",
+          "group": "navigation@90"
+        }
+      ],
       "editor/context": [
+        {
+          "command": "siren.runFile",
+          "when": "editorLangId == python && resourceScheme == file",
+          "group": "siren@0"
+        },
         {
           "command": "siren.insert",
           "when": "editorLangId == python",

@@ -149,6 +149,16 @@ export async function run(): Promise<void> {
     await waitFor(async () => ((await count()) === before + 2 ? true : undefined), "a deleted file to be dropped");
   });
 
+  await check("Run current file captures values with no setup", async () => {
+    const captured = () => vscode.commands.executeCommand<number>("siren._capturedCount");
+    const before = await captured();
+    const file = path.join(ws, "run me.py"); // a space in the path, on purpose
+    fs.writeFileSync(file, "total = sum([1, 2, 3])\nsiren(total)\n");
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(file));
+    await vscode.commands.executeCommand("siren.runFile");
+    await waitFor(async () => ((await captured()) > before ? true : undefined), "the run to report a value", 60000);
+  });
+
   console.log(["Siren integration suite:", ...results].join("\n"));
   if (failed) {
     throw new Error("integration suite failed");

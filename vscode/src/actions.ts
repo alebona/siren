@@ -19,6 +19,7 @@ export const GROUPS: Group[] = [
     icon: "debug-alt",
     actions: [
       { label: "Insert siren()", description: "Ctrl+Alt+S", icon: "add", command: "siren.insert" },
+      { label: "Run current file", description: "values show inline", icon: "play", command: "siren.runFile" },
       { label: "Show captured values", icon: "output", command: "siren.showOutput" },
       { label: "Clear inline values", icon: "clear-all", command: "siren.clearInlineValues" },
     ],

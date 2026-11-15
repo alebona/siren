@@ -4,6 +4,8 @@
 
 - New **Calls** section in the Siren sidebar: every `siren()` call in the workspace, grouped by file, with its line and last captured value. Click one to jump to it. It updates as you edit (unsaved changes included), create and delete files, and skips `.venv`, `node_modules` and other installed code.
 - The Siren icon in the activity bar shows how many calls the workspace has.
+- **Run current file** (▶ at the top of Python editors, the Actions panel, or `Siren: Run Python File with Siren`): runs the file in a new terminal with Siren loaded, so its values show up with no setup.
+- **Show captured values** explains why the list is empty when nothing has been captured yet, and offers to run the current file.
 - The status bar shows this file's count and the workspace's (`🧜 2 · 7`). With none in the current file, it shows the workspace total and opens the Calls list.
 
 ## 1.1.0

@@ -42,6 +42,8 @@ export class InlineValues implements vscode.Disposable {
   readonly onDidChange = this.changed.event;
   private offset = 0;
   private partial = "";
+  /** How many values have been captured since VS Code started. */
+  captured = 0;
 
   /** Latest value captured at a 1-based line of a file, if that line has run. */
   lastValue(file: string, line: number): { name: string; value: string } | undefined {
@@ -123,6 +125,7 @@ export class InlineValues implements vscode.Disposable {
       history.shift();
     }
     fileValues.set(event.line, history);
+    this.captured++;
 
     const label = event.label ? ` [${event.label}]` : "";
     this.output.appendLine(
