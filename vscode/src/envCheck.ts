@@ -34,10 +34,26 @@ export class EnvChecker implements vscode.Disposable, vscode.CodeActionProvider 
     this.refresh();
   }
 
-  refresh(): void {
+  /** Check on demand (from the Actions panel) and say what was found. */
+  report(): void {
+    const { compared, issues } = this.refresh(true);
+    if (compared === 0) {
+      vscode.window.showInformationMessage(
+        "Siren: no workspace folder has both .env and .env.example at its root, so there's nothing to compare.",
+      );
+    } else if (issues === 0) {
+      vscode.window.showInformationMessage("Siren: .env and .env.example have the same keys.");
+    } else {
+      vscode.commands.executeCommand("workbench.actions.view.problems");
+    }
+  }
+
+  refresh(force = false): { compared: number; issues: number } {
     this.diagnostics.clear();
-    if (!vscode.workspace.getConfiguration("siren").get<boolean>("envCheck.enabled", true)) {
-      return;
+    let compared = 0;
+    let issues = 0;
+    if (!force && !vscode.workspace.getConfiguration("siren").get<boolean>("envCheck.enabled", true)) {
+      return { compared, issues };
     }
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
       const examplePath = path.join(folder.uri.fsPath, ".env.example");
@@ -48,6 +64,8 @@ export class EnvChecker implements vscode.Disposable, vscode.CodeActionProvider 
         continue;
       }
       const drift = envDrift(exampleText, envText);
+      compared++;
+      issues += drift.missingInEnv.length + drift.missingInExample.length;
       this.diagnostics.set(
         vscode.Uri.file(examplePath),
         drift.missingInEnv.map(({ key, line }) =>
@@ -67,6 +85,7 @@ export class EnvChecker implements vscode.Disposable, vscode.CodeActionProvider 
         ),
       );
     }
+    return { compared, issues };
   }
 
   async provideCodeActions(

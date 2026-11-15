@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { ActionsView } from "./actions";
 import { EnvChecker } from "./envCheck";
 import { CallHighlighter } from "./highlight";
 import { RequestsView } from "./http";
@@ -22,14 +23,17 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Siren");
   const inline = new InlineValues(runtime.eventsFile, output);
   const quality = new QualityChecker(runtime);
+  const env = new EnvChecker();
 
   context.subscriptions.push(
     runtime,
     output,
     inline,
     quality,
+    env,
     new CallHighlighter(),
-    new EnvChecker(),
+    vscode.window.registerTreeDataProvider("siren.actions", new ActionsView()),
+    vscode.commands.registerCommand("siren.checkEnv", () => env.report()),
     new SnippetsView(runtime),
     new RequestsView(runtime),
     vscode.commands.registerCommand("siren.insert", insertSiren),

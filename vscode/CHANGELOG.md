@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+- New **Actions** section at the top of the Siren sidebar: insert `siren()`, show or clear captured values, remove calls from the file or workspace, check code quality, check `.env`, and create a file from a template, each one click away.
+- New command: `Siren: Check .env Against .env.example`.
+
 ## 1.0.3
 
 - Removing `siren()` calls no longer skips a file when a call is the only line in a block (for example `for i in x: siren(i)`). Siren leaves a `pass` there and removes everything else; before, the whole file was left untouched.
