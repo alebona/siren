@@ -106,6 +106,8 @@ def find_dead_code(source, filename="<string>"):
                 name = alias.asname or alias.name.split(".")[0]
                 imported[name] = node.lineno
         elif isinstance(node, ast.ImportFrom):
+            if node.module == "__future__":
+                continue  # compiler directives, never referenced by name
             for alias in node.names:
                 if alias.name == "*":
                     continue
@@ -124,8 +126,14 @@ def find_dead_code(source, filename="<string>"):
 
     defined = {}
     for node in tree.body:
-        if isinstance(node, _DEF_TYPES):
-            defined[node.name] = node.lineno
+        if not isinstance(node, _DEF_TYPES):
+            continue
+        # Found by name or registered elsewhere, not called in this file:
+        # test functions/classes (unittest, pytest) and decorated defs
+        # (@app.route, @pytest.fixture, @receiver, ...).
+        if node.name.lower().startswith("test") or getattr(node, "decorator_list", None):
+            continue
+        defined[node.name] = node.lineno
 
     unused_defs = sorted(
         (

@@ -175,7 +175,10 @@ def _remove_lines(lines, marked, path):
 def clean_file(path, dry_run=False):
     # io.open decodes/encodes explicitly on both Python 2 and 3, unlike the
     # builtin open() which doesn't accept encoding= on Python 2.
-    with io.open(path, "r", encoding="utf-8") as f:
+    # newline="" keeps the file's own line endings (LF or CRLF) instead of
+    # rewriting every line in the OS default, which would show the whole
+    # file as changed in git.
+    with io.open(path, "r", encoding="utf-8", newline="") as f:
         source = f.read()
 
     # Python 2's splitlines() only accepts keepends positionally, not as a
@@ -200,7 +203,7 @@ def clean_file(path, dry_run=False):
         # rather than corrupting it.
         return 0
 
-    with io.open(path, "w", encoding="utf-8") as f:
+    with io.open(path, "w", encoding="utf-8", newline="") as f:
         f.write(new_source)
 
     return len(marked)

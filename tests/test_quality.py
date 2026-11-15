@@ -36,6 +36,32 @@ class TestDeadCode(unittest.TestCase):
         self.assertIn("unused", names)
         self.assertNotIn("used", names)
 
+    def test_ignores_tests_and_decorated_defs(self):
+        source = textwrap.dedent("""
+            import unittest
+
+            class TestThing(unittest.TestCase):
+                pass
+
+            def test_thing():
+                pass
+
+            @app.get("/items")
+            def list_items():
+                pass
+
+            def really_unused():
+                pass
+        """)
+        result = quality.find_dead_code(source)
+        names = [name for name, _ in result["unused_defs"]]
+        self.assertEqual(names, ["really_unused"])
+
+    def test_ignores_future_imports(self):
+        source = "from __future__ import print_function\nimport os\n"
+        names = [name for name, _ in quality.find_dead_code(source)["unused_imports"]]
+        self.assertEqual(names, ["os"])
+
 
 class TestLint(unittest.TestCase):
     def test_finds_bare_except(self):

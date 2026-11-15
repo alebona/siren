@@ -179,6 +179,19 @@ class TestSirenCleaner(unittest.TestCase):
         self.assertEqual(removed, 1)
         self.assertEqual(result, u"for i in x:\r\n    pass\r\n")
 
+    def test_clean_file_keeps_lf_line_endings_on_every_os(self):
+        # On Windows the default newline is CRLF; an LF file must stay LF,
+        # or git would show every line of the file as changed.
+        path = self._write_temp_file("")
+        with io.open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(u"x = 1\nsiren(x)\nprint(x)\n")
+        clean.clean_file(path)
+        with io.open(path, encoding="utf-8", newline="") as f:
+            result = f.read()
+        os.unlink(path)
+
+        self.assertEqual(result, u"x = 1\nprint(x)\n")
+
     def _read(self, path):
         with open(path, encoding="utf-8") as f:
             return f.read()
