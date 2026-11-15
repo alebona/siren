@@ -162,7 +162,7 @@ async function runClean(
     } else {
       const choice = await vscode.window.showWarningMessage(
         `Remove ${lines} with siren() from ${displayName}?`,
-        { modal: true, detail: "Lines whose removal would leave invalid Python are kept." },
+        { modal: true, detail: "A call that is the only line in a block is replaced by `pass`." },
         "Remove",
       );
       if (choice !== "Remove") {
@@ -173,9 +173,7 @@ async function runClean(
     const result = await runModule(runtime, "siren.clean", [target], cwd, resource);
     const removed = parseRemovedCount(result.stdout);
     const kept = preview.total - removed;
-    const keptNote =
-      " siren-clean leaves a file untouched when removing its calls would leave invalid Python" +
-      " (for example a loop or if whose only line is siren(...)).";
+    const keptNote = " A file is left untouched when removing its calls can't produce valid Python, even with `pass`.";
     if (removed === 0) {
       vscode.window.showWarningMessage(`Siren: nothing was removed from ${displayName}.${keptNote}`);
     } else if (kept > 0) {

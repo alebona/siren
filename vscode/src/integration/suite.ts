@@ -110,7 +110,12 @@ export async function run(): Promise<void> {
       }
     }, "the probe script to run in the terminal", 60000);
     terminal.dispose();
-    assert.ok(result.runtime.startsWith(path.join(ext.extensionPath, "python")), `runtime came from ${result.runtime}`);
+    // Windows paths are case-insensitive ("c:\" and "C:\" are the same drive).
+    const norm = (p: string) => (process.platform === "win32" ? p.toLowerCase() : p);
+    assert.ok(
+      norm(result.runtime).startsWith(norm(path.join(ext.extensionPath, "python"))),
+      `runtime came from ${result.runtime}`,
+    );
     const event = JSON.parse(result.events.trim().split("\n")[0]);
     assert.equal(event.name, "answer");
     assert.equal(event.value, "42");

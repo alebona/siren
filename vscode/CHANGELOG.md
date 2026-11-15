@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- Removing `siren()` calls no longer skips a file when a call is the only line in a block (for example `for i in x: siren(i)`). Siren leaves a `pass` there and removes everything else; before, the whole file was left untouched.
+- Removing calls keeps the file's own line endings. Before, a file with LF endings came back with CRLF on Windows (and the reverse elsewhere), so git showed every line as changed.
+- Code quality no longer flags test classes and functions, decorated functions (`@app.get`, `@pytest.fixture`, ...) or `from __future__` imports as unused.
+
 ## 1.0.2
 
 - New icon: a glowing mermaid tail rising from the water.
