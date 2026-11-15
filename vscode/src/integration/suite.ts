@@ -122,6 +122,13 @@ export async function run(): Promise<void> {
     assert.equal(event.line, 3);
   });
 
+  await check("every Actions panel item runs a registered command", async () => {
+    const { GROUPS } = await import("../actions");
+    const registered = new Set(await vscode.commands.getCommands(true));
+    const missing = GROUPS.flatMap((g) => g.actions.map((a) => a.command)).filter((c) => !registered.has(c));
+    assert.deepEqual(missing, []);
+  });
+
   console.log(["Siren integration suite:", ...results].join("\n"));
   if (failed) {
     throw new Error("integration suite failed");
