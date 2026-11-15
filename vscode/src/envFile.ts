@@ -38,6 +38,23 @@ export function envDrift(exampleText: string, envText: string): EnvDrift {
   return { missingInEnv: missing(example, env), missingInExample: missing(env, example) };
 }
 
+/**
+ * A .env.example built from a .env: same comments, blank lines and keys, with
+ * every value removed so no secret is copied into a file that gets committed.
+ */
+export function exampleFromEnv(envText: string): string {
+  return envText
+    .split(/(\r?\n)/)
+    .map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed || trimmed.startsWith("#") || !part.includes("=")) {
+        return part;
+      }
+      return part.slice(0, part.indexOf("=") + 1).trimStart();
+    })
+    .join("");
+}
+
 /** Text to append to a file so it ends with `KEY=` on its own line. */
 export function appendKeyText(currentText: string, key: string): string {
   const prefix = currentText === "" || currentText.endsWith("\n") ? "" : "\n";

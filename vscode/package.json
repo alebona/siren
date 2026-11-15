@@ -83,6 +83,11 @@
         "category": "Siren"
       },
       {
+        "command": "siren.checkQualityFile",
+        "title": "Check Code Quality in This File",
+        "category": "Siren"
+      },
+      {
         "command": "siren.checkEnv",
         "title": "Check .env Against .env.example",
         "category": "Siren"
@@ -205,6 +210,11 @@
           "command": "siren.runFile",
           "when": "editorLangId == python && resourceScheme == file",
           "group": "siren@0"
+        },
+        {
+          "command": "siren.checkQualityFile",
+          "when": "editorLangId == python && resourceScheme == file",
+          "group": "siren@4"
         },
         {
           "command": "siren.insert",

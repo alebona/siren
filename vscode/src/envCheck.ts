@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { appendKeyText, envDrift } from "./envFile";
+import { appendKeyText, envDrift, exampleFromEnv } from "./envFile";
 
 const MISSING = "env-missing"; // in .env.example, not set in .env
 const UNDOCUMENTED = "env-undocumented"; // in .env, not in .env.example
@@ -35,17 +35,52 @@ export class EnvChecker implements vscode.Disposable, vscode.CodeActionProvider 
   }
 
   /** Check on demand (from the Actions panel) and say what was found. */
-  report(): void {
+  async report(): Promise<void> {
     const { compared, issues } = this.refresh(true);
     if (compared === 0) {
-      vscode.window.showInformationMessage(
-        "Siren: no workspace folder has both .env and .env.example at its root, so there's nothing to compare.",
-      );
+      await this.offerMissingFile();
     } else if (issues === 0) {
       vscode.window.showInformationMessage("Siren: .env and .env.example have the same keys.");
     } else {
       vscode.commands.executeCommand("workbench.actions.view.problems");
     }
+  }
+
+  /** Nothing to compare: when one of the two files exists, offer to create the other. */
+  private async offerMissingFile(): Promise<void> {
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      const envPath = path.join(folder.uri.fsPath, ".env");
+      const examplePath = path.join(folder.uri.fsPath, ".env.example");
+      const envText = read(envPath);
+      const exampleText = read(examplePath);
+      if (envText !== undefined && exampleText === undefined) {
+        const create = "Create .env.example";
+        const choice = await vscode.window.showInformationMessage(
+          `Siren: ${folder.name} has a .env but no .env.example. Create one with the same keys and no values, so teammates know what to set?`,
+          create,
+        );
+        if (choice === create) {
+          fs.writeFileSync(examplePath, exampleFromEnv(envText));
+          await vscode.window.showTextDocument(vscode.Uri.file(examplePath));
+        }
+        return;
+      }
+      if (exampleText !== undefined && envText === undefined) {
+        const create = "Create .env";
+        const choice = await vscode.window.showInformationMessage(
+          `Siren: ${folder.name} has a .env.example but no .env. Create .env from it, to fill in your values?`,
+          create,
+        );
+        if (choice === create) {
+          fs.writeFileSync(envPath, exampleText);
+          await vscode.window.showTextDocument(vscode.Uri.file(envPath));
+        }
+        return;
+      }
+    }
+    vscode.window.showInformationMessage(
+      "Siren: this project has no .env or .env.example at its root, so there's nothing to check.",
+    );
   }
 
   refresh(force = false): { compared: number; issues: number } {

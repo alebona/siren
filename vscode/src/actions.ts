@@ -36,7 +36,8 @@ export const GROUPS: Group[] = [
     label: "Code",
     icon: "code",
     actions: [
-      { label: "Check code quality", description: "Problems panel", icon: "checklist", command: "siren.checkQuality" },
+      { label: "Check this file", description: "code quality", icon: "file-code", command: "siren.checkQualityFile" },
+      { label: "Check workspace", description: "code quality", icon: "checklist", command: "siren.checkQuality" },
       { label: "Check .env", description: "vs .env.example", icon: "symbol-key", command: "siren.checkEnv" },
       { label: "New from template...", icon: "new-file", command: "siren.newFromTemplate" },
     ],

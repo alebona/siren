@@ -50,6 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("siren.showOutput", () => showCapturedValues(inline, output)),
     vscode.commands.registerCommand("siren.runFile", (uri?: vscode.Uri) => runFile(runtime, uri)),
     vscode.commands.registerCommand("siren.checkQuality", () => quality.checkWorkspace()),
+    vscode.commands.registerCommand("siren.checkQualityFile", () => quality.checkActiveFile()),
     vscode.commands.registerCommand("siren.newFromTemplate", (uri?: vscode.Uri) => newFromTemplate(runtime, uri)),
   );
 }

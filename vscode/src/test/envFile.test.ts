@@ -1,6 +1,13 @@
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
-import { appendKeyText, envDrift, parseEnvKeys } from "../envFile";
+import { appendKeyText, envDrift, exampleFromEnv, parseEnvKeys } from "../envFile";
+
+test("exampleFromEnv keeps keys and comments but drops every value", () => {
+  assert.equal(
+    exampleFromEnv("# database\nDB_URL=postgres://user:secret@host/db\n\nexport API_KEY = abc123\nDEBUG=\r\n"),
+    "# database\nDB_URL=\n\nexport API_KEY =\nDEBUG=\r\n",
+  );
+});
 
 test("parseEnvKeys skips comments and blanks, keeps first line, strips export", () => {
   const keys = parseEnvKeys("# db\n\nDB_URL=postgres://x\nexport API_KEY = abc\nnot a pair\nDB_URL=again\r\n");
