@@ -2,7 +2,7 @@
   "name": "siren",
   "displayName": "Siren",
   "description": "Print-debugging for Python without the cleanup: siren(x) values inline in the editor, one-click removal, code checks, snippets and an HTTP client.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "alebona",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -57,7 +57,8 @@
       {
         "command": "siren.cleanWorkspace",
         "title": "Remove siren() Calls from Workspace",
-        "category": "Siren"
+        "category": "Siren",
+        "icon": "$(trash)"
       },
       {
         "command": "siren.clearInlineValues",
@@ -153,6 +154,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "siren.calls.refresh",
+        "title": "Rescan siren() Calls",
+        "category": "Siren",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "siren.http.send",
         "title": "Send",
         "icon": "$(play)"
@@ -238,6 +245,16 @@
         {
           "command": "siren.http.refresh",
           "when": "view == siren.requests",
+          "group": "navigation@2"
+        },
+        {
+          "command": "siren.cleanWorkspace",
+          "when": "view == siren.calls",
+          "group": "navigation@1"
+        },
+        {
+          "command": "siren.calls.refresh",
+          "when": "view == siren.calls",
           "group": "navigation@2"
         }
       ],
@@ -347,6 +364,10 @@
           "name": "Actions"
         },
         {
+          "id": "siren.calls",
+          "name": "Calls"
+        },
+        {
           "id": "siren.snippets",
           "name": "Snippets"
         },
@@ -357,6 +378,10 @@
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "siren.calls",
+        "contents": "No siren() calls in this workspace. Put the cursor on a variable and press Ctrl+Alt+S to add one."
+      },
       {
         "view": "siren.snippets",
         "contents": "Save code you reuse and insert it with one click. Write {{name}} where a value changes; it becomes a field you fill in.\n[New Snippet](command:siren.snippets.add)\nTip: select code and right-click > New Snippet (from Selection)."

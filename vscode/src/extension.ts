@@ -17,6 +17,7 @@ import {
   parseRemovedCount,
 } from "./sirenCalls";
 import { SnippetsView } from "./snippets";
+import { CallsView, WorkspaceCalls } from "./workspaceCalls";
 
 export function activate(context: vscode.ExtensionContext): void {
   const runtime = new Runtime(context);
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const inline = new InlineValues(runtime.eventsFile, output);
   const quality = new QualityChecker(runtime);
   const env = new EnvChecker();
+  const calls = new WorkspaceCalls();
 
   context.subscriptions.push(
     runtime,
@@ -31,7 +33,11 @@ export function activate(context: vscode.ExtensionContext): void {
     inline,
     quality,
     env,
-    new CallHighlighter(),
+    calls,
+    new CallHighlighter(calls),
+    new CallsView(calls, inline),
+    // Internal: lets the integration tests read the workspace total.
+    vscode.commands.registerCommand("siren._workspaceCallCount", () => calls.total()),
     vscode.window.registerTreeDataProvider("siren.actions", new ActionsView()),
     vscode.commands.registerCommand("siren.checkEnv", () => env.report()),
     new SnippetsView(runtime),

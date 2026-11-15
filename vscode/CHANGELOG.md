@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- New **Calls** section in the Siren sidebar: every `siren()` call in the workspace, grouped by file, with its line and last captured value. Click one to jump to it. It updates as you edit (unsaved changes included), create and delete files, and skips `.venv`, `node_modules` and other installed code.
+- The Siren icon in the activity bar shows how many calls the workspace has.
+- The status bar shows this file's count and the workspace's (`🧜 2 · 7`). With none in the current file, it shows the workspace total and opens the Calls list.
+
 ## 1.1.0
 
 - New **Actions** section at the top of the Siren sidebar: insert `siren()`, show or clear captured values, remove calls from the file or workspace, check code quality, check `.env`, and create a file from a template, each one click away.
