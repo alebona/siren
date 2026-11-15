@@ -33,17 +33,20 @@ export class WorkspaceCalls implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor() {
-    const watcher = vscode.workspace.createFileSystemWatcher("**/*.py");
+    // Watch everything, not just *.py: a new folder (git checkout, pull,
+    // unzip) can arrive before its files' own events, and a deleted folder
+    // may only report itself, not each file inside it.
+    const watcher = vscode.workspace.createFileSystemWatcher("**/*");
     this.disposables.push(
       watcher,
       this.changed,
-      watcher.onDidCreate((uri) => this.scanFile(uri)),
-      watcher.onDidChange((uri) => this.scanFile(uri)),
-      watcher.onDidDelete((uri) => {
-        if (this.files.delete(fileKey(uri.fsPath))) {
-          this.changed.fire();
+      watcher.onDidCreate((uri) => this.onCreated(uri)),
+      watcher.onDidChange((uri) => {
+        if (uri.fsPath.endsWith(".py")) {
+          this.scanFile(uri);
         }
       }),
+      watcher.onDidDelete((uri) => this.onDeleted(uri)),
       vscode.workspace.onDidChangeTextDocument((e) => {
         const doc = e.document;
         if (doc.languageId === "python" && doc.uri.scheme === "file" && e.contentChanges.length) {
@@ -76,6 +79,43 @@ export class WorkspaceCalls implements vscode.Disposable {
       await Promise.all(uris.slice(i, i + 64).map((uri) => this.scanFile(uri, false)));
     }
     this.changed.fire();
+  }
+
+  private async onCreated(uri: vscode.Uri): Promise<void> {
+    if (isExcluded(uri)) {
+      return;
+    }
+    if (uri.fsPath.endsWith(".py")) {
+      await this.scanFile(uri);
+      return;
+    }
+    let isDir = false;
+    try {
+      isDir = (await fs.stat(uri.fsPath)).isDirectory();
+    } catch {
+      return;
+    }
+    if (isDir) {
+      const uris = await vscode.workspace.findFiles(new vscode.RelativePattern(uri, "**/*.py"), EXCLUDE, MAX_FILES);
+      await Promise.all(uris.map((u) => this.scanFile(u, false)));
+      this.changed.fire();
+    }
+  }
+
+  private onDeleted(uri: vscode.Uri): void {
+    // The path may be a file or a whole folder: drop it and anything under it.
+    const k = fileKey(uri.fsPath);
+    const prefix = k.endsWith(path.sep) ? k : k + path.sep;
+    let removed = false;
+    for (const existing of [...this.files.keys()]) {
+      if (existing === k || existing.startsWith(prefix)) {
+        this.files.delete(existing);
+        removed = true;
+      }
+    }
+    if (removed) {
+      this.changed.fire();
+    }
   }
 
   private async scanFile(uri: vscode.Uri, fire = true): Promise<void> {

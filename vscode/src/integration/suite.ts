@@ -147,6 +147,11 @@ export async function run(): Promise<void> {
 
     fs.rmSync(path.join(ws, "pkg", "a.py"));
     await waitFor(async () => ((await count()) === before + 2 ? true : undefined), "a deleted file to be dropped");
+
+    // Deleting a whole folder drops everything under it.
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    fs.rmSync(path.join(ws, "pkg"), { recursive: true, force: true });
+    await waitFor(async () => ((await count()) === before ? true : undefined), "a deleted folder to be dropped");
   });
 
   await check("Run current file captures values with no setup", async () => {
