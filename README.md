@@ -56,7 +56,7 @@ Everything sits in the Siren sidebar (the mermaid tail icon), and in the command
 | | |
 | --- | --- |
 | **Inline values** | Each `siren()` shows its latest value at the end of its line; hover for the last five. |
-| **Insert** | `Ctrl+Alt+S` logs the variable under the cursor, or wraps the selection in `siren(...)`. |
+| **Insert** | `Ctrl+Alt+S` adds `siren()` with the cursor inside, ready to type, or wraps the selection in `siren(...)`. |
 | **Run current file** | Runs the file in a new terminal with Siren loaded, so values show up with no setup. |
 | **Calls** | Every `siren()` in the workspace, grouped by file, with its last value. The sidebar icon shows the total. |
 | **Clean up** | Remove the calls from one file or the whole workspace, with a preview. A call that is a block's only line becomes `pass`. |

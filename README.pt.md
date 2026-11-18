@@ -56,7 +56,7 @@ Tudo fica no painel lateral do Siren (o ícone da cauda de sereia) e na paleta d
 | | |
 | --- | --- |
 | **Valores na linha** | Cada `siren()` mostra o último valor no fim da linha; passe o mouse para ver os cinco últimos. |
-| **Inserir** | `Ctrl+Alt+S` registra a variável sob o cursor ou envolve a seleção em `siren(...)`. |
+| **Inserir** | `Ctrl+Alt+S` adiciona `siren()` com o cursor dentro, pronto para digitar, ou envolve a seleção em `siren(...)`. |
 | **Run current file** | Roda o arquivo num terminal novo com o Siren ativo, e os valores aparecem sem configurar nada. |
 | **Calls** | Todos os `siren()` do projeto, agrupados por arquivo, com o último valor. O ícone lateral mostra o total. |
 | **Limpeza** | Remove as chamadas de um arquivo ou do projeto inteiro, com prévia. Uma chamada que é a única linha de um bloco vira `pass`. |
