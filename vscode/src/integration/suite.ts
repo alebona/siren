@@ -195,6 +195,36 @@ export async function run(): Promise<void> {
     await waitFor(async () => ((await captured()) > before ? true : undefined), "the run to report a value", 60000);
   });
 
+  await check("Enable for this environment: siren() works in a process started outside VS Code", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const venv = path.join(ws, ".venv-enable");
+    const system = process.platform === "win32" ? "python" : "python3";
+    execFileSync(system, ["-m", "venv", venv]);
+    const venvPython = path.join(venv, process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+    const config = vscode.workspace.getConfiguration("siren");
+    await config.update("pythonPath", venvPython, vscode.ConfigurationTarget.Workspace);
+    // A process with none of VS Code's variables, like a server or an AI
+    // assistant would start.
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.PYTHONPATH;
+    delete cleanEnv.SIREN_VSCODE_EVENTS;
+    const script = path.join(ws, "outside.py");
+    fs.writeFileSync(script, "siren(6 * 7)\nprint('ran')\n");
+    const captured = () => vscode.commands.executeCommand<number>("siren._capturedCount");
+    try {
+      const before = await captured();
+      await vscode.commands.executeCommand("siren.enableEnvironment");
+      const out = execFileSync(venvPython, [script], { env: cleanEnv }).toString();
+      assert.match(out, /ran/);
+      await waitFor(async () => ((await captured()) > before ? true : undefined), "the value from outside VS Code");
+
+      await vscode.commands.executeCommand("siren.disableEnvironment");
+      assert.throws(() => execFileSync(venvPython, [script], { env: cleanEnv, stdio: "pipe" }), /NameError/);
+    } finally {
+      await config.update("pythonPath", undefined, vscode.ConfigurationTarget.Workspace);
+    }
+  });
+
   console.log(["Siren integration suite:", ...results].join("\n"));
   if (failed) {
     throw new Error("integration suite failed");

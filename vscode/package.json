@@ -78,6 +78,16 @@
         "icon": "$(play)"
       },
       {
+        "command": "siren.enableEnvironment",
+        "title": "Enable for This Python Environment (siren() everywhere, no import)",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.disableEnvironment",
+        "title": "Disable for This Python Environment",
+        "category": "Siren"
+      },
+      {
         "command": "siren.checkQuality",
         "title": "Check Code Quality in Workspace",
         "category": "Siren"

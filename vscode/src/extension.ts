@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { ActionsView } from "./actions";
 import { EnvChecker } from "./envCheck";
+import { EnvironmentInstaller } from "./environment";
 import { CallHighlighter } from "./highlight";
 import { RequestsView } from "./http";
 import { InlineValues } from "./inlineValues";
@@ -35,6 +36,7 @@ export function activate(context: vscode.ExtensionContext): void {
     env,
     calls,
     new CallHighlighter(calls),
+    new EnvironmentInstaller(context, runtime),
     new CallsView(calls, inline),
     // Internal: lets the integration tests read the workspace total.
     vscode.commands.registerCommand("siren._workspaceCallCount", () => calls.total()),

@@ -52,7 +52,11 @@ The extension adds its bundled `siren` package to `PYTHONPATH` for:
 
 A `sitecustomize` module then registers `siren` as a builtin, so calls work even without the import. Any `sitecustomize` your environment already has still runs.
 
-Programs started outside VS Code don't get the runtime, so remove the calls before you ship. Terminals that were already open when the extension started don't get it either; open a new one.
+Terminals that were already open when the extension started don't get it; open a new one.
+
+**Everywhere else.** Servers you start outside VS Code, external terminals, task runners and scripts that an AI assistant runs for you don't go through those terminals. Run **Siren: Enable for This Python Environment** (or **Enable everywhere** in the Actions panel) once per project: it adds a small `.pth` file to the project's interpreter (its virtualenv, or your user site-packages for a global Python), so every program that interpreter runs gets `siren()` without an import and reports its values to the editor. It keeps working when the extension updates. **Siren: Disable for This Python Environment** removes it.
+
+Machines that don't have the extension (CI, production) never get the runtime, so remove the calls before you ship.
 
 ## Settings
 

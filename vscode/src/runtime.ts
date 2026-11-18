@@ -11,11 +11,32 @@ export const EVENTS_ENV = "SIREN_VSCODE_EVENTS";
  */
 export class Runtime implements vscode.Disposable {
   readonly runtimeDir: string;
+  /**
+   * A copy of the runtime at a path that doesn't change between extension
+   * versions (the extension's own folder is renamed on every update), for
+   * Python environments that load Siren through a .pth file.
+   */
+  readonly stableRuntimeDir: string;
   readonly eventsFile: string;
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.runtimeDir = context.asAbsolutePath("python");
+    this.stableRuntimeDir = path.join(context.globalStorageUri.fsPath, "runtime");
+    // Only re-copy when the version changes, so several VS Code windows
+    // starting together don't delete it under a running program.
+    const version = String(context.extension.packageJSON.version);
+    const marker = path.join(this.stableRuntimeDir, ".version");
+    let current = "";
+    try {
+      current = fs.readFileSync(marker, "utf8");
+    } catch {
+      // not copied yet
+    }
+    if (current !== version) {
+      syncDir(this.runtimeDir, this.stableRuntimeDir);
+      fs.writeFileSync(marker, version);
+    }
     const storage = (context.storageUri ?? context.globalStorageUri).fsPath;
     fs.mkdirSync(storage, { recursive: true });
     this.eventsFile = path.join(storage, "events.jsonl");
@@ -71,6 +92,23 @@ export class Runtime implements vscode.Disposable {
 
   dispose(): void {
     this.disposables.forEach((d) => d.dispose());
+  }
+}
+
+/** Replace `dest` with a copy of `src` (Python files only), so it always matches this extension version. */
+function syncDir(src: string, dest: string): void {
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, entry.name);
+    const to = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "__pycache__") {
+        syncDir(from, to);
+      }
+    } else if (entry.name.endsWith(".py")) {
+      fs.copyFileSync(from, to);
+    }
   }
 }
 

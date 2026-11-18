@@ -36,6 +36,13 @@ export const GROUPS: Group[] = [
         command: "siren.runFile",
       },
       {
+        label: "Enable everywhere",
+        tooltip:
+          "Make siren() work without an import in every program this project's Python runs, not only in VS Code terminals: servers, external terminals, scripts run by other tools",
+        icon: "globe",
+        command: "siren.enableEnvironment",
+      },
+      {
         label: "Captured values",
         tooltip: "Every value siren() has printed, in the Siren output channel",
         icon: "output",
