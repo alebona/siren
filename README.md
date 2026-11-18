@@ -107,7 +107,7 @@ siren.set_logfile("debug.log")    # also write the output to a file
 
 The extension puts its bundled `siren` package on `PYTHONPATH` for integrated terminals opened after it starts (including **Run Python File**) and for Python debug sessions. A `sitecustomize` module then registers `siren` as a builtin; any `sitecustomize` your environment already has still runs.
 
-Programs started anywhere else don't get the runtime: an external terminal, a terminal opened before the extension loaded, a server you start outside VS Code, or a script that an AI coding assistant runs for you. There, a leftover `siren(x)` raises `NameError`, so remove the calls before you ship.
+Programs started anywhere else don't get the runtime: an external terminal, a terminal opened before the extension loaded, a server you start outside VS Code, or a script that an AI coding assistant runs for you. For those, run **Siren: Enable for This Python Environment** once per project: it adds a small `.pth` file to the project's interpreter so every program it runs gets `siren()` without an import, and reports values to the editor. Machines without the extension (CI, production) never get the runtime, so remove the calls before you ship.
 
 ## Python versions
 

@@ -107,7 +107,7 @@ O `@siren.trace` aceita `timeit`, `show_args`, `show_return` e `show_type`, todo
 
 A extensão coloca o pacote `siren` que ela traz no `PYTHONPATH` dos terminais integrados abertos depois que ela inicia (inclusive o **Run Python File**) e das sessões de debug Python. Um módulo `sitecustomize` registra o `siren` como builtin; se o seu ambiente já tem um `sitecustomize`, ele continua rodando.
 
-Programas iniciados em qualquer outro lugar não recebem o runtime: um terminal externo, um terminal aberto antes de a extensão carregar, um servidor iniciado fora do VS Code ou um script que um assistente de código com IA roda para você. Nesses casos, um `siren(x)` esquecido gera `NameError`; por isso, remova as chamadas antes de entregar o código.
+Programas iniciados em qualquer outro lugar não recebem o runtime: um terminal externo, um terminal aberto antes de a extensão carregar, um servidor iniciado fora do VS Code ou um script que um assistente de código com IA roda para você. Para esses casos, rode **Siren: Enable for This Python Environment** uma vez por projeto: ele adiciona um pequeno arquivo `.pth` ao interpretador do projeto, e todo programa que ele roda passa a ter o `siren()` sem import e a mandar os valores para o editor. Máquinas sem a extensão (CI, produção) nunca recebem o runtime; por isso, remova as chamadas antes de entregar o código.
 
 ## Versões do Python
 
