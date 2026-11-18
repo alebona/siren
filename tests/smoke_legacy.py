@@ -54,7 +54,7 @@ def aplicar(nome, descricao=u"ação"):
     return u"%s: %s" % (nome, descricao)
 
 
-aplicar("Manutenção")
+aplicar(u"Manutenção")
 siren.diff({u"preço": 1, "nome": "ação"}, {u"preço": 2, "nome": "ação"})
 print("fim")
 '''
