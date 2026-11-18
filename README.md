@@ -1,497 +1,155 @@
-# Siren
+<p align="center">
+  <img src="vscode/media/icon.png" width="128" alt="Siren icon: a crystal mermaid tail rising from the water">
+</p>
 
-Minimal Python debug helper with automatic cleanup.
+<h1 align="center">Siren</h1>
 
-> A tiny debugging utility for Python that prints variables with file/line context, traces function calls, measures execution time, and safely removes debug calls from your code.
+<p align="center">
+  Print-debugging for Python, without the cleanup.<br>
+  A VS Code extension: write <code>siren(x)</code>, run your code, see the value at the end of the line. Remove every call in one click.
+</p>
 
-[![PyPI - Version](https://img.shields.io/pypi/v/siren-debug?label=PyPI&color=blue)](https://pypi.org/project/siren-debug/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/siren-debug?label=Python)](https://pypi.org/project/siren-debug/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=alebona.siren"><img src="https://vsmarketplacebadges.dev/version-short/alebona.siren.svg" alt="VS Code Marketplace version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=alebona.siren"><img src="https://vsmarketplacebadges.dev/installs-short/alebona.siren.svg" alt="Installs"></a>
+  <img src="https://img.shields.io/badge/Python-2.7%20%7C%203.6%2B-3776AB" alt="Python 2.7 and 3.6+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
+</p>
+
+<p align="center"><b>English</b> · <a href="README.pt.md">Português</a></p>
 
 ---
 
 ## Install
 
+Search for **Siren** in the VS Code Extensions panel (`Ctrl+Shift+X`), or install it from the [Marketplace page](https://marketplace.visualstudio.com/items?itemName=alebona.siren), or from a terminal:
+
 ```bash
-pip install siren-debug
+code --install-extension alebona.siren
 ```
 
-The package also installs `siren-clean` (remove debug calls), `siren-autoload` (use `siren` without importing it), and several other `siren-*` tools. Run `siren` (no arguments) for a full list of every command and what it does, filterable by area: `siren pro`, `siren snippet`.
+There is nothing to `pip install`. The extension carries its own Python runtime and makes `siren` available to every Python program you start from VS Code. You only need Python 2.7 or 3.6+ on your machine.
 
----
-
-## Quick Start
+## Quick start
 
 ```python
-from siren import siren
-
-x = 10
-user = {"name": "Alex", "items": [1, 2, 3]}
-
-siren(x)
+user = {"name": "Ana", "items": [1, 2, 3]}
 siren(user)
+
+for i in range(3):
+    siren(i, label="loop")
 ```
+
+Press ▶ **Run current file** at the top of the editor (or run the file in a VS Code terminal, or with F5). Each value shows at the end of its line:
 
 ```text
-[🧜‍ SIREN core.py:10] x = 10
-[🧜‍ SIREN core.py:11] user = {'name': 'Alex', 'items': [1, 2, 3]}
+siren(user)                 🧜 user = {'name': 'Ana', 'items': [1, 2, 3]}
+    siren(i, label="loop")  🧜 i = 2 (last of 3)
 ```
 
-Siren automatically uses `pprint` for complex objects, and picks up the file/line it was called from.
+No import needed: under VS Code, `siren` is a builtin. When you're done, click the **🧜** counter in the status bar to remove every call from the file.
 
----
+## What's in the extension
 
-## Features
+Everything sits in the Siren sidebar (the mermaid tail icon), and in the command palette under **Siren:**.
 
-- Works with Python 2.7 and 3.6+
-- Zero external dependencies for the free tier (`certifi` is the only dependency, pulled in for reliable HTTPS in the pro tier's `siren-login`/`siren-events`)
-- Prints values with file and line number
-- Uses `pprint` automatically for complex data
-- Function tracing with `@siren.trace`, object diffing with `siren.diff`, an interactive `siren.breakpoint()`, memory snapshots with `siren.memory()`, and colored traceback capture with `siren.catch`
-- Quiet mode, conditional logging, and file logging
-- Removes `siren(...)` calls automatically with `siren-clean`
-- Use `siren` anywhere without importing it via `siren-autoload`
-- Project/file scaffolding with `siren-scaffold`, `.env` drift checks with `siren-env`
-- Terminal snippet manager (`siren-snippet`) and a dependency-free HTTP client (`siren-http`)
-- Local code-quality checks with `siren-quality` (dead code, lint, cyclomatic complexity)
-- `siren` lists every command and what it does, filterable by area (`siren pro`, `siren snippet`)
-- Performance metrics with `siren.profile`/`siren.profile_block` and `siren-perf top` to rank real bottlenecks over time (pro tier)
-- Works in scripts, CLI tools, Django, Flask, FastAPI, and more
-- Colored output with emoji for easy visual scanning
+| | |
+| --- | --- |
+| **Inline values** | Each `siren()` shows its latest value at the end of its line; hover for the last five. |
+| **Insert** | `Ctrl+Alt+S` adds `siren()` with the cursor inside, ready to type, or wraps the selection in `siren(...)`. |
+| **Run current file** | Runs the file in a new terminal with Siren loaded, so values show up with no setup. |
+| **Calls** | Every `siren()` in the workspace, grouped by file, with its last value. The sidebar icon shows the total. |
+| **Clean up** | Remove the calls from one file or the whole workspace, with a preview. A call that is a block's only line becomes `pass`. |
+| **Code quality** | Unused imports and functions, bare `except:`, leftover breakpoints, TODOs and complex functions, in the Problems panel. |
+| **.env drift** | Keys missing from `.env` or `.env.example`, with a quick fix that adds them. |
+| **Templates** | New script, class, data class, test or package from the Explorer's right-click menu. |
+| **Snippets** | Save code you reuse in a form (name, tags, code) and insert it with one click; `{{name}}` becomes a field to fill in. |
+| **HTTP requests** | Send requests, save the ones you repeat, and read the response beside your code. |
 
----
+The [extension's own README](vscode/README.md) covers each feature and its settings.
 
-## Usage
+## The `siren()` API
 
-Call `siren(...)` with one or more values. It returns them unchanged, so it can be inlined:
+`siren()` returns what you pass it, so it can go inside an expression:
 
 ```python
-from siren import siren
-
-siren(x, data, user)
-result = siren(compute())  # still returns compute()'s value
+siren(x, data, user)              # several values at once
+total = siren(compute())          # still returns compute()'s value
+siren(order, label="BEFORE SAVE") # tag a call
+siren(x, timeit=True)             # also print how long the call took
+siren(items, if_len_gt=100)       # only when len(items) > 100
+siren(x, if_equals=5)             # also: if_len_lt, if_true, if_false
+siren(x, quiet=True)              # keep the call, print nothing
 ```
 
-**Label** — tag a call for easier scanning:
+More tools on the same object:
 
 ```python
-siren(value, label="BEFORE SAVE")
-```
-
-**Timer** — measure execution time for a call:
-
-```python
-siren(x, timeit=True)
-# [🧜‍ SIREN core.py:10] x = 10
-# [🧜‍ SIREN TIME] 0.000123s
-```
-
-**Quiet mode** — suppress output without removing the call:
-
-```python
-siren(x, quiet=True)      # this call only, still returns x
-siren.set_quiet(True)     # every call, until set_quiet(False)
-```
-
-**Conditional logging** — only print when a condition holds:
-
-```python
-siren(x, if_equals=5)        # only if x == 5
-siren(items, if_len_gt=100)  # only if len(items) > 100
-siren(items, if_len_lt=5)    # only if len(items) < 5
-siren(result, if_true=True)  # only if result is truthy
-siren(error, if_false=True)  # only if error is falsy
-```
-
-**Logging to file** — mirror output to a file:
-
-```python
-siren.set_logfile("debug.log")
-siren(x)  # prints to stdout AND writes to debug.log
-```
-
-**Inspect configuration**:
-
-```python
-config = siren.get_config()
-print(config)  # {"quiet": False, "logfile": None, "enabled": True}
-```
-
----
-
-## Function tracing
-
-`@siren.trace` logs a function's calls, arguments, return value, execution time, and exceptions automatically:
-
-```python
-from siren import trace
-
-@siren.trace
+@siren.trace                      # log each call: arguments, return value, time, exceptions
 def add(a, b):
     return a + b
 
-add(2, 3)
-```
+siren.diff(before, after)         # what changed between two dicts, lists or objects
+siren.breakpoint()                # pause and print the local variables
+siren.memory(top=5)               # current and peak memory, plus the top allocation sites (Python 3.4+)
 
-```text
-[🧜‍ SIREN core.py:10] Calling add(a=2, b=3)
-[🧜‍ SIREN core.py:11] Returned from add -> 5 [int] (0.000123s)
-```
-
-Configuration options (all default to `True`):
-
-| Option | Effect |
-|---|---|
-| `timeit` | Show execution time |
-| `show_args` | Show function arguments |
-| `show_return` | Show return value |
-| `show_type` | Show return type in brackets |
-
-```python
-@siren.trace(timeit=True, show_args=False, show_type=False)
-def multiply(a, b):
-    return a * b
-```
-
-Exceptions are logged before being re-raised, so `@siren.trace` never swallows an error:
-
-```python
-@siren.trace
-def divide(a, b):
-    return a / b
-
-divide(5, 0)  # Logs exception before raising
-```
-
----
-
-## Diff, breakpoint, memory, and catch
-
-**`siren.diff`** compares two dicts, lists, tuples, or any comparable objects:
-
-```python
-before = {"name": "Alice", "age": 30}
-after = {"name": "Alice", "age": 31, "city": "NYC"}
-
-siren.diff(before, after)
-```
-
-```text
-[🧜‍ SIREN test.py:10] DIFF
-[🧜‍ SIREN test.py:11] [~] age: 30 → 31 (changed)
-[🧜‍ SIREN test.py:12] [+] city: NYC (new)
-```
-
-**`siren.breakpoint()`** pauses execution and prints local variables:
-
-```python
-x = 42
-data = {"items": [1, 2, 3]}
-
-siren.breakpoint()  # Pauses and displays all locals
-# Press Ctrl+C to continue, or type 'd' to drop into pdb
-```
-
-**`siren.memory()`** prints current/peak traced memory usage (requires Python 3.4+; prints a clear message instead of failing on Python 2):
-
-```python
-siren.memory()          # [🧜‍ SIREN MEMORY ...] current=1.2MB peak=1.5MB
-siren.memory(top=5)     # also print the top 5 allocation sites
-```
-
-**`siren.catch`** is a context manager that prints a colored traceback on exception and re-raises it — it never swallows errors:
-
-```python
-with siren.catch():
+with siren.catch():               # print a readable traceback, then re-raise
     risky_call()
+
+siren.patch_requests()            # log every call made through requests (also: patch_httpx)
+siren.set_quiet(True)             # silence every call until set_quiet(False)
+siren.set_logfile("debug.log")    # also write the output to a file
 ```
 
----
+`@siren.trace` takes `timeit`, `show_args`, `show_return` and `show_type`, all `True` by default.
 
-## Cleaning debug calls
+## How the runtime gets in
 
-Run `siren-clean` in a project folder to remove all `siren(...)` calls and their import lines — comments and string literals are left untouched:
+The extension puts its bundled `siren` package on `PYTHONPATH` for integrated terminals opened after it starts (including **Run Python File**) and for Python debug sessions. A `sitecustomize` module then registers `siren` as a builtin; any `sitecustomize` your environment already has still runs.
+
+Programs started anywhere else don't get the runtime: an external terminal, a terminal opened before the extension loaded, a server you start outside VS Code, or a script that an AI coding assistant runs for you. For those, run **Siren: Enable for This Python Environment** once per project: it adds a small `.pth` file to the project's interpreter so every program it runs gets `siren()` without an import, and reports values to the editor. Machines without the extension (CI, production) never get the runtime, so remove the calls before you ship.
+
+## Python versions
+
+The runtime supports Python 2.7 and 3.6+. CI runs the test suite on Python 3.10 to 3.13 (Linux, Windows and macOS), and an end-to-end check of a legacy-style project (Python 2 syntax, accented text, `coding:` line) on Python 2.7 and 3.
+
+## Siren Pro
+
+Pro will bring production into the editor: exceptions from your servers shown on the line that raised them, and each function's real response times above its definition, plus alerts, sync between machines and team workspaces. It is in development; the free extension stays free.
+
+## Repository
+
+| Path | What it is |
+| --- | --- |
+| `vscode/` | The VS Code extension (TypeScript) |
+| `siren/` | The Python runtime the extension bundles: `siren()`, cleanup, quality checks, snippets, HTTP |
+| `siren/_bridge.py` | JSON-over-stdin entry point the extension uses to call the Python side |
+| `tests/` | Python tests, plus `smoke_legacy.py`, the end-to-end check that also runs on Python 2.7 |
+
+### Development
 
 ```bash
-siren-clean
+# Python tests
+python -m unittest discover -s tests
+python tests/smoke_legacy.py
+
+# Extension: unit tests, then the integration suite in a real VS Code
+cd vscode
+npm ci
+npm test
+npm run test:integration
 ```
 
-Before:
+Press F5 in VS Code with the `vscode/` folder open to try the extension in a development window.
 
-```python
-from siren import siren
-siren(x)
-print("hello")
-siren(data)
-```
+### Releases
 
-After:
+Bump `version` in `vscode/package.json` and add a `vscode/CHANGELOG.md` entry, merge to `main`, then push a `vscode-v<version>` tag on `main`. The [publish workflow](.github/workflows/publish-vscode.yml) runs every test and publishes to the Marketplace.
 
-```python
-print("hello")
-```
+### The `siren-debug` PyPI package
 
----
-
-## Autoload (no per-file imports)
-
-By default you still need `from siren import siren` in every file that uses it. If you'd rather call `siren(x)` anywhere in a project without importing it each time, enable autoload once per environment (virtualenv, Docker image, CI job, etc.):
-
-```bash
-siren-autoload on
-siren-autoload status   # check whether it's enabled
-siren-autoload off      # disable again
-```
-
-This writes a `.pth` file into the current environment's `site-packages`, injecting `siren` into Python's builtins as soon as any interpreter starts in that environment — no import needed anywhere, including in Django apps, Flask views, scripts, or the shell. It's opt-in per environment, so it won't silently affect environments where you didn't run `on`.
-
----
-
-## Beyond debugging
-
-Siren also ships a handful of small, dependency-free CLI tools for everyday project work.
-
-### Scaffolding — `siren-scaffold`
-
-Generate a small file or project skeleton:
-
-```bash
-siren-scaffold script my_tool       # a single script with a main() guard
-siren-scaffold package my_package   # a package dir with __init__.py, core.py, and tests/
-siren-scaffold class Widget         # a plain class
-siren-scaffold dataclass Point      # a plain-Python value object (no dataclasses module needed)
-siren-scaffold test Widget          # a unittest.TestCase stub
-```
-
-It refuses to overwrite existing files.
-
-### `.env` drift check — `siren-env`
-
-```bash
-siren-env diff                                    # compares .env.example against .env
-siren-env diff --example .env.sample --env .env.local
-```
-
-Reports keys present in one file but missing from the other, and exits non-zero on drift — usable as a CI check.
-
-### Snippets — `siren-snippet`
-
-```bash
-echo "print('hello')" | siren-snippet save greet --tag python
-siren-snippet save query --file query.sql --tag sql   # from a file instead of stdin
-siren-snippet show greet
-siren-snippet copy greet                               # sends it straight to the clipboard
-siren-snippet edit greet                                # opens it in $EDITOR
-siren-snippet rename greet hello
-siren-snippet list [--tag sql]
-siren-snippet tags                                      # every tag in use, with counts
-siren-snippet search select                              # matches by name, tag, or content
-siren-snippet remove greet
-```
-
-`save` refuses to overwrite an existing snippet unless you pass `--force` — this also applies to `rename`.
-
-Snippets can hold `{{placeholder}}` markers, filled in on the way out instead of when saved:
-
-```bash
-echo 'SELECT * FROM {{table}};' | siren-snippet save query --tag sql
-siren-snippet copy query --var table=users   # copies "SELECT * FROM users;"
-siren-snippet show query --var table=users   # same, printed instead of copied
-```
-
-Back up or move your snippets between machines with `export`/`import` (content, tags, and timestamps all round-trip; `import` skips names that already exist unless you pass `--force`):
-
-```bash
-siren-snippet export backup.json
-siren-snippet import backup.json
-```
-
-Snippets are stored as plain text files under `~/.siren/snippets/`, with tags/timestamps tracked separately in `~/.siren/snippets/_index.json` (so any snippet saved before this existed keeps working unchanged, just without tags).
-
-### HTTP client — `siren-http`
-
-A tiny httpie-like client built on `urllib` only:
-
-```bash
-siren-http GET https://api.example.com/items
-siren-http POST https://api.example.com/items --json '{"name": "x"}' -H "Authorization: Bearer TOKEN"
-siren-http GET https://api.example.com/items --save my-request   # save it as a local collection
-siren-http replay my-request                                     # resend a saved request
-siren-http list                                                  # list saved requests
-```
-
-You can also log every HTTP call your own code makes through `requests` or `httpx`, without touching that code — `requests`/`httpx` are not siren dependencies, they're only imported when you call these:
-
-```python
-siren.patch_requests()    # every requests.Session call now logs method/url/status/duration
-siren.patch_httpx()       # same, for httpx.Client (sync only)
-siren.unpatch_requests()
-siren.unpatch_httpx()
-```
-
-### Code quality — `siren-quality`
-
-Local checks built on the stdlib `ast` module (no pyflakes/radon/etc dependency):
-
-```bash
-siren-quality deadcode .     # unused imports and module-level defs never referenced in the same file
-siren-quality lint .         # bare `except:`, leftover pdb.set_trace()/breakpoint(), TODO/FIXME comments
-siren-quality complexity .   # cyclomatic complexity per function, flags anything above --threshold (default 10)
-```
-
-`deadcode` is a same-file heuristic — it can't see usage from other files, so treat its findings as candidates to double-check, not certainties.
-
----
-
-## Pro tier
-
-Everything above is free and runs entirely offline. The `siren-debug` package also ships a couple of pro-tier commands that talk to a small backend (separate, closed-source repo) for a paid feature: exception capture with a searchable history, instead of only a local `siren.catch()`.
-
-```bash
-siren-login signup you@example.com   # creates an account + API key, stored in ~/.siren/credentials.json
-siren-login status                    # check your plan/license
-siren-login logout
-```
-
-```python
-try:
-    risky()
-except Exception:
-    siren.report()   # sends the exception (with traceback) to your workspace
-```
-
-```bash
-siren-events list        # recent exceptions reported from any of your machines
-siren-events show <id>   # full traceback for one of them
-```
-
-`siren.report()` never raises on its own — if you're not logged in, or the backend can't be reached, it prints a message and returns `None` instead of breaking your error handling. Point the CLI at a different backend with `SIREN_API_URL` (defaults to the hosted one). The hosted backend runs on Render's free tier, so it sleeps after inactivity — the first request after a while can take 30-60s to wake it up.
-
-**Subscribing:**
-
-```bash
-siren-login upgrade                  # currency auto-detected from your system locale
-siren-login upgrade --currency usd   # override it (brl / usd / eur)
-```
-
-**Team workspaces** — invite a teammate (creates their account if they don't have one yet, and hands you their API key to pass along since there's no email delivery yet):
-
-```bash
-siren-login invite teammate@example.com
-```
-
-**Notifications** — post to a Slack/Discord incoming webhook whenever an exception is captured for your workspace:
-
-```bash
-siren-login set-webhook https://hooks.slack.com/services/...
-siren-login set-webhook              # no URL clears it
-```
-
-**Performance metrics** — time a function or a block of code; samples are buffered locally and uploaded in the background (never a blocking call per invocation), so `siren-perf top` can rank real bottlenecks across runs instead of one call on one machine:
-
-```python
-@siren.profile
-def slow_thing():
-    ...
-
-with siren.profile_block("db-query"):
-    ...
-
-siren.perf_flush()   # force an upload before a short script/job exits
-```
-
-```bash
-siren-perf top                # ranked by total time spent, last 24h by default
-siren-perf top --hours 168    # last 7 days
-siren-perf list --name slow_thing
-```
-
-Tune volume on hot paths with `@siren.profile(sample_rate=0.1)` (sample 10% of calls) or `@siren.profile(min_duration_ms=50)` (only report calls slower than 50ms).
-
----
-
-## Framework examples
-
-<details>
-<summary>Django</summary>
-
-```python
-from django.http import JsonResponse
-from siren import siren
-
-def my_view(request):
-    user_data = request.GET.dict()
-    siren(user_data, label="REQUEST_PARAMS")
-
-    result = process_data(user_data)
-    siren(result)
-
-    return JsonResponse(result)
-```
-</details>
-
-<details>
-<summary>Flask</summary>
-
-```python
-from flask import Flask, request
-from siren import siren, trace
-
-app = Flask(__name__)
-
-@app.route("/api/users")
-def get_users():
-    query = request.args.get("q")
-    siren(query, label="SEARCH_QUERY")
-
-    users = search_users(query)
-    return {"users": users}
-
-@siren.trace
-def search_users(query):
-    # Function entry/exit will be logged automatically
-    return [{"id": 1, "name": "Alice"}]
-```
-</details>
-
-<details>
-<summary>FastAPI</summary>
-
-```python
-from fastapi import FastAPI
-from siren import siren, trace
-
-app = FastAPI()
-
-@app.get("/items/{item_id}")
-async def get_item(item_id: int, q: str = None):
-    siren({"item_id": item_id, "q": q}, label="QUERY_PARAMS")
-
-    item = await fetch_item(item_id)
-    return item
-
-@siren.trace(timeit=True)
-async def fetch_item(item_id: int):
-    # Execution time and arguments will be logged
-    return {"id": item_id, "name": "Item"}
-```
-</details>
-
----
-
-## Why use Siren?
-
-Debug prints are easy to add, but hard to remove later. Siren gives you a fast debug workflow and a safe cleanup step so your temporary debug code does not stay in production.
-
----
-
-## Project
-
-- Package name: `siren-debug`
-- Python versions: `2.7`, `3.6+`
-- License: MIT
-- PyPI: https://pypi.org/project/siren-debug/
+Siren started as the `siren-debug` package on PyPI, with `siren-*` terminal commands. That package is being retired in favor of the extension, which includes everything it did. Its last release stays installable for anyone who still depends on it.
 
 ## License
 
-MIT
+[MIT](LICENSE)
