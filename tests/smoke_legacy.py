@@ -47,6 +47,16 @@ siren(u"texto unicode: ação", label="rótulo")
 for s in servicos:
     siren(s)
 siren(len(servicos), timeit=True)
+
+
+@siren.trace
+def aplicar(nome, descricao=u"ação"):
+    return u"%s: %s" % (nome, descricao)
+
+
+aplicar("Manutenção")
+siren.diff({u"preço": 1, "nome": "ação"}, {u"preço": 2, "nome": "ação"})
+print("fim")
 '''
 
 failures = []
@@ -121,6 +131,9 @@ def main():
         write(script, RUNNABLE)
         out, err = run([sys.executable, script], proj, env)
         assert u"preços" in out, out
+        assert u"Returned from aplicar" in out, out  # @siren.trace
+        assert u"(changed)" in out, out  # siren.diff
+        assert out.rstrip().endswith(u"fim"), out  # the script ran to the end
         assert not err.strip(), err
 
     @check("each siren() call reports file, line and value to the editor")
