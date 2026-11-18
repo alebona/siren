@@ -162,27 +162,37 @@ export async function run(): Promise<void> {
 
   await check("Calls counts siren() in every file, open or not, and follows edits", async () => {
     const count = () => vscode.commands.executeCommand<number>("siren._workspaceCallCount");
+    // On a timeout, say what the list actually holds, so a CI failure explains itself.
+    const expectCount = async (expected: number, what: string) => {
+      try {
+        await waitFor(async () => ((await count()) === expected ? true : undefined), what);
+      } catch {
+        const entries = await vscode.commands.executeCommand<string[]>("siren._workspaceCalls");
+        throw new Error(`timed out waiting for ${what}: expected ${expected}, got ${await count()} [${entries.join(" ")}]`);
+      }
+    };
     const before = await count();
     fs.mkdirSync(path.join(ws, "pkg"), { recursive: true });
     fs.writeFileSync(path.join(ws, "pkg", "a.py"), "x = 1\nsiren(x)\nsiren(x, label='again')\n");
     fs.writeFileSync(path.join(ws, "pkg", "b.py"), "y = 2\nsiren(y)\n");
     fs.mkdirSync(path.join(ws, ".venv", "lib"), { recursive: true });
     fs.writeFileSync(path.join(ws, ".venv", "lib", "dep.py"), "siren(1)\n"); // ignored
-    await waitFor(async () => ((await count()) === before + 3 ? true : undefined), "new files to be counted");
+    await expectCount(before + 3, "new files to be counted");
 
     // Unsaved edits count too.
     const doc = await vscode.workspace.openTextDocument(path.join(ws, "pkg", "b.py"));
     const editor = await vscode.window.showTextDocument(doc);
-    await editor.edit((b) => b.insert(new vscode.Position(2, 0), "siren(y * 2)\n"));
-    await waitFor(async () => ((await count()) === before + 4 ? true : undefined), "an unsaved edit to be counted");
+    const applied = await editor.edit((b) => b.insert(new vscode.Position(2, 0), "siren(y * 2)\n"));
+    assert.ok(applied, `the edit wasn't applied; b.py is ${JSON.stringify(doc.getText())}`);
+    await expectCount(before + 4, `an unsaved edit to be counted (b.py: ${JSON.stringify(doc.getText())})`);
 
     fs.rmSync(path.join(ws, "pkg", "a.py"));
-    await waitFor(async () => ((await count()) === before + 2 ? true : undefined), "a deleted file to be dropped");
+    await expectCount(before + 2, "a deleted file to be dropped");
 
     // Deleting a whole folder drops everything under it.
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     fs.rmSync(path.join(ws, "pkg"), { recursive: true, force: true });
-    await waitFor(async () => ((await count()) === before ? true : undefined), "a deleted folder to be dropped");
+    await expectCount(before, "a deleted folder to be dropped");
   });
 
   await check("Run current file captures values with no setup", async () => {

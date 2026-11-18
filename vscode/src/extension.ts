@@ -40,6 +40,9 @@ export function activate(context: vscode.ExtensionContext): void {
     new CallsView(calls, inline),
     // Internal: lets the integration tests read the workspace total.
     vscode.commands.registerCommand("siren._workspaceCallCount", () => calls.total()),
+    vscode.commands.registerCommand("siren._workspaceCalls", () =>
+      calls.entries().map((e) => `${vscode.workspace.asRelativePath(e.uri)}:${e.calls.map((c) => c.line).join(",")}`),
+    ),
     vscode.commands.registerCommand("siren._capturedCount", () => inline.captured),
     vscode.window.registerTreeDataProvider("siren.actions", new ActionsView()),
     vscode.commands.registerCommand("siren.checkEnv", () => env.report()),

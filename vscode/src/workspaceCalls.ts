@@ -30,6 +30,8 @@ export class WorkspaceCalls implements vscode.Disposable {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChange = this.changed.event;
   private readonly timers = new Map<string, NodeJS.Timeout>();
+  /** Bumped on every edit of a file, to tell a stale disk read from a fresh one. */
+  private readonly generation = new Map<string, number>();
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor() {
@@ -50,6 +52,9 @@ export class WorkspaceCalls implements vscode.Disposable {
       vscode.workspace.onDidChangeTextDocument((e) => {
         const doc = e.document;
         if (doc.languageId === "python" && doc.uri.scheme === "file" && e.contentChanges.length) {
+          // Mark the edit right away, so a disk read still in flight is dropped.
+          const k = fileKey(doc.uri.fsPath);
+          this.generation.set(k, (this.generation.get(k) ?? 0) + 1);
           this.debounce(doc.uri, () => this.setFromText(doc.uri, doc.getText()));
         }
       }),
@@ -96,10 +101,17 @@ export class WorkspaceCalls implements vscode.Disposable {
       return;
     }
     if (isDir) {
-      const uris = await vscode.workspace.findFiles(new vscode.RelativePattern(uri, "**/*.py"), EXCLUDE, MAX_FILES);
-      await Promise.all(uris.map((u) => this.scanFile(u, false)));
-      this.changed.fire();
+      await this.scanDir(uri);
+      // A folder often fills up right after it's created (git checkout, unzip),
+      // and the watcher may report only the folder. Look again shortly after.
+      setTimeout(() => this.scanDir(uri), 1000);
     }
+  }
+
+  private async scanDir(dir: vscode.Uri): Promise<void> {
+    const uris = await vscode.workspace.findFiles(new vscode.RelativePattern(dir, "**/*.py"), EXCLUDE, MAX_FILES);
+    await Promise.all(uris.map((u) => this.scanFile(u, false)));
+    this.changed.fire();
   }
 
   private onDeleted(uri: vscode.Uri): void {
@@ -122,15 +134,30 @@ export class WorkspaceCalls implements vscode.Disposable {
     if (isExcluded(uri)) {
       return;
     }
-    // An open document may have unsaved edits: trust it over the disk.
-    const open = vscode.workspace.textDocuments.find((d) => fileKey(d.uri.fsPath) === fileKey(uri.fsPath));
-    let text: string;
-    try {
-      text = open ? open.getText() : await fs.readFile(uri.fsPath, "utf8");
-    } catch {
-      return;
+    const k = fileKey(uri.fsPath);
+    const startedAt = this.generation.get(k) ?? 0;
+    let text: string | undefined = this.openText(uri);
+    if (text === undefined) {
+      try {
+        text = await fs.readFile(uri.fsPath, "utf8");
+      } catch {
+        return;
+      }
+      // The read is async: if the file was edited meanwhile, this disk copy
+      // is older than what the edit already recorded, so drop it.
+      if ((this.generation.get(k) ?? 0) !== startedAt) {
+        return;
+      }
+      // Opened while we were reading: unsaved edits win over the disk.
+      text = this.openText(uri) ?? text;
     }
     this.setFromText(uri, text, fire);
+  }
+
+  /** Text of the file if it's open in an editor (may hold unsaved edits). */
+  private openText(uri: vscode.Uri): string | undefined {
+    const k = fileKey(uri.fsPath);
+    return vscode.workspace.textDocuments.find((d) => fileKey(d.uri.fsPath) === k)?.getText();
   }
 
   private setFromText(uri: vscode.Uri, text: string, fire = true): void {
