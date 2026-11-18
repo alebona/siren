@@ -167,6 +167,53 @@ class TestSirenCleaner(unittest.TestCase):
         self.assertEqual(removed, 4)
         self.assertEqual(result, "while True:\n    pass\nprint('done')\n")
 
+    def test_clean_file_python2_code_checked_by_python3(self):
+        # A Python 2 project (print statement) cleaned with Python 3: the
+        # file never compiles here, which used to leave it untouched.
+        removed, result = self._clean(u"""\
+            # -*- coding: utf-8 -*-
+            from siren import siren
+
+            def reajustar(servicos):
+                siren("Calculando preços de %d serviços..." % len(servicos))
+                print "ok"
+                return servicos
+        """)
+
+        self.assertEqual(removed, 2)
+        self.assertEqual(
+            result,
+            u'# -*- coding: utf-8 -*-\n\ndef reajustar(servicos):\n    print "ok"\n    return servicos\n',
+        )
+
+    def test_clean_file_python2_code_keeps_pass_by_structure(self):
+        removed, result = self._clean("""\
+            def f(xs):
+                for x in xs:
+                    siren(x)  # only line in the loop
+
+                    siren(x * 2)
+                print "done"
+            if True:
+                siren(1)
+        """)
+
+        self.assertEqual(removed, 3)
+        self.assertEqual(
+            result,
+            'def f(xs):\n    for x in xs:\n        pass\n\n    print "done"\nif True:\n    pass\n',
+        )
+
+    def test_clean_file_with_coding_declaration_and_accents(self):
+        removed, result = self._clean(u"""\
+            # -*- coding: utf-8 -*-
+            preço = 10
+            siren(preço)
+        """)
+
+        self.assertEqual(removed, 1)
+        self.assertEqual(result, u"# -*- coding: utf-8 -*-\npreço = 10\n")
+
     def test_clean_file_handles_crlf_line_endings(self):
         path = self._write_temp_file("")
         with io.open(path, "w", encoding="utf-8", newline="") as f:

@@ -11,6 +11,11 @@ from datetime import datetime
 
 from ._output import safe_print
 
+try:
+    text_type = unicode  # Python 2
+except NameError:
+    text_type = str  # Python 3
+
 TOKEN_NAME = "siren"
 
 IMPORT_RE = re.compile(r"^\s*from\s+siren\s+import\s+siren(?:\s+as\s+\w+)?\s*(?:#.*)?$")
@@ -117,11 +122,68 @@ def _collect_siren_lines(source):
 
 
 def _compiles(source, path):
+    # Compile bytes, not text: Python 2 raises SyntaxError ("encoding
+    # declaration in Unicode string") for any decoded source that still has
+    # a "# -*- coding: utf-8 -*-" line, which would make every such file
+    # look broken.
+    if isinstance(source, text_type):
+        source = source.encode("utf-8")
     try:
         compile(source, path, "exec")
         return True
-    except SyntaxError:
+    except (SyntaxError, ValueError, TypeError):
         return False
+
+
+def _code_part(line):
+    """The line without its trailing comment or newline (a # inside a string is kept)."""
+    quote = None
+    i = 0
+    while i < len(line):
+        ch = line[i]
+        if quote:
+            if ch == "\\":
+                i += 1
+            elif ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "#":
+            return line[:i].rstrip()
+        i += 1
+    return line.rstrip()
+
+
+def _indent(line):
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def _structural_placeholders(lines, marked):
+    """
+    Where a `pass` is needed, worked out from the code's shape alone: a run of
+    removed lines whose block opener (a line ending in ':') has no other
+    statement left in its block. Used when the file can't be compiled by the
+    interpreter running siren-clean, e.g. Python 2 code checked by Python 3.
+    """
+    def is_code(lineno):
+        text = lines[lineno - 1].strip()
+        return bool(text) and not text.startswith("#")
+
+    needed = set()
+    openers_done = set()
+    for run in _runs(marked):
+        prev = run[0] - 1
+        while prev >= 1 and (prev in marked or not is_code(prev)):
+            prev -= 1
+        if prev < 1 or prev in openers_done or not _code_part(lines[prev - 1]).endswith(":"):
+            continue
+        nxt = run[-1] + 1
+        while nxt <= len(lines) and (nxt in marked or not is_code(nxt)):
+            nxt += 1
+        if nxt > len(lines) or _indent(lines[nxt - 1]) <= _indent(lines[prev - 1]):
+            needed.add(run[0])
+            openers_done.add(prev)
+    return needed
 
 
 def _runs(marked):
@@ -156,6 +218,12 @@ def _remove_lines(lines, marked, path):
     if whose only line was siren(...)), keep a `pass` where the call was -
     only where one is needed. Returns None if no version compiles.
     """
+    if not _compiles("".join(lines), path):
+        # This interpreter can't compile the file even before any change
+        # (Python 2 code checked by Python 3, or the reverse), so compiling
+        # can't tell a good result from a bad one. Go by the code's shape.
+        return _rebuild(lines, marked, _structural_placeholders(lines, marked))
+
     source = _rebuild(lines, marked, set())
     if _compiles(source, path):
         return source
