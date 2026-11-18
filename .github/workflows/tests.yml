@@ -34,6 +34,19 @@ jobs:
       run: |
         python -m unittest discover -s tests -v
 
+    - name: Legacy project smoke test
+      run: python tests/smoke_legacy.py
+
+  # Many teams still run Python 2.7 codebases. setup-python no longer ships
+  # 2.7, so run the smoke test in the official image instead.
+  python27:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Legacy project smoke test on Python 2.7
+      run: docker run --rm -v "$PWD:/src" -w /src python:2.7 python tests/smoke_legacy.py
+
   extension:
     runs-on: ubuntu-latest
     defaults:
