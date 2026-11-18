@@ -25,7 +25,7 @@ export const GROUPS: Group[] = [
       {
         label: "Insert siren()",
         description: "Ctrl+Alt+S",
-        tooltip: "Log the variable under the cursor, or wrap the selection in siren(...)",
+        tooltip: "Add siren() with the cursor inside, ready to type; or wrap the selection in siren(...)",
         icon: "add",
         command: "siren.insert",
       },

@@ -111,40 +111,59 @@ async function insertSiren(): Promise<void> {
     vscode.workspace.getConfiguration("siren").get<boolean>("addImport", true) &&
     !hasSirenImport(doc.getText());
 
-  // Selections: wrap in place. Empty selection: log the word under the cursor
-  // on a new line below.
-  const edits: { range: vscode.Range; text: string }[] = [];
-  for (const selection of editor.selections) {
-    if (!selection.isEmpty) {
-      edits.push({ range: selection, text: `siren(${doc.getText(selection)})` });
-      continue;
+  const importEdit = (builder: vscode.TextEditorEdit) => {
+    if (addImport) {
+      builder.insert(new vscode.Position(importInsertLine(doc.getText()), 0), "from siren import siren\n");
     }
-    const wordRange = doc.getWordRangeAtPosition(selection.active, /[\w.]+/);
-    if (!wordRange) {
-      continue;
-    }
-    const line = doc.lineAt(selection.active.line);
-    const indent = indentAfter(line.text, indentUnit);
-    edits.push({
-      range: new vscode.Range(line.range.end, line.range.end),
-      text: `\n${indent}siren(${doc.getText(wordRange)})`,
+  };
+
+  // Something selected: wrap each selection in siren(...), in place.
+  if (editor.selections.some((s) => !s.isEmpty)) {
+    await editor.edit((builder) => {
+      for (const selection of editor.selections) {
+        if (!selection.isEmpty) {
+          builder.replace(selection, `siren(${doc.getText(selection)})`);
+        }
+      }
+      importEdit(builder);
     });
-  }
-  if (!edits.length) {
-    vscode.window.showInformationMessage("Siren: select an expression or put the cursor on a variable.");
     return;
   }
 
-  await editor.edit((builder) => {
-    for (const edit of edits) {
-      builder.replace(edit.range, edit.text);
-    }
-    if (addImport) {
-      const at = new vscode.Position(importInsertLine(doc.getText()), 0);
-      builder.insert(at, "from siren import siren\n");
-    }
+  // Nothing selected: add siren() and leave the cursor between the
+  // parentheses. On a blank line it goes right there; otherwise on a new line
+  // below. A variable under the cursor comes pre-filled and selected, so
+  // typing replaces it.
+  if (addImport) {
+    await editor.edit(importEdit, { undoStopBefore: true, undoStopAfter: false });
+  }
+  const cursor = editor.selection.active; // already moved down if the import went above it
+  const line = doc.lineAt(cursor.line);
+  const wordRange = doc.getWordRangeAtPosition(cursor, /[A-Za-z_][\w.]*/);
+  const word = wordRange ? doc.getText(wordRange) : "";
+  const inner = word && !PYTHON_KEYWORDS.has(word) ? `\${1:${word}}` : "$1";
+  let at = cursor;
+  if (!line.isEmptyOrWhitespace) {
+    const indent = indentAfter(line.text, indentUnit);
+    await editor.edit((builder) => builder.insert(line.range.end, `\n${indent}`), {
+      undoStopBefore: !addImport,
+      undoStopAfter: false,
+    });
+    at = new vscode.Position(line.lineNumber + 1, indent.length);
+  }
+  await editor.insertSnippet(new vscode.SnippetString(`siren(${inner})`), at, {
+    undoStopBefore: false,
+    undoStopAfter: true,
   });
+  // Clicked from the sidebar: bring the focus back to the editor to type.
+  await vscode.window.showTextDocument(doc, editor.viewColumn);
 }
+
+const PYTHON_KEYWORDS = new Set(
+  "and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass print raise return try while with yield True False None".split(
+    " ",
+  ),
+);
 
 async function cleanFile(runtime: Runtime): Promise<void> {
   const editor = vscode.window.activeTextEditor;

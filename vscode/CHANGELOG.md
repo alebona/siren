@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2
+
+- **Insert siren()** (`Ctrl+Alt+S`) no longer needs something typed first. With nothing selected it adds `siren()` and leaves the cursor between the parentheses: right there on a blank line, or on a new indented line below. A variable under the cursor comes pre-filled and selected, so you can keep it or type over it. With a selection, it still wraps it in `siren(...)`.
+
 ## 1.2.1
 
 - New icon: a crystal mermaid tail rising from the water.

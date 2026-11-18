@@ -122,6 +122,37 @@ export async function run(): Promise<void> {
     assert.equal(event.line, 3);
   });
 
+  await check("Ctrl+Alt+S with nothing under the cursor adds siren() and puts the cursor inside", async () => {
+    const file = path.join(ws, "empty-insert.py");
+    fs.writeFileSync(file, "from siren import siren\nx = 1\n\ntotal = x + 1\nif x:\n    pass\n");
+    const editor = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(file));
+    try {
+      // Blank line: inserted right there, cursor between the parentheses.
+      editor.selection = new vscode.Selection(2, 0, 2, 0);
+      await vscode.commands.executeCommand("siren.insert");
+      assert.equal(editor.document.lineAt(2).text, "siren()");
+      assert.deepEqual([editor.selection.active.line, editor.selection.active.character], [2, 6]);
+      await editor.edit((b) => b.insert(editor.selection.active, "x * 2"));
+      assert.equal(editor.document.lineAt(2).text, "siren(x * 2)");
+      await vscode.commands.executeCommand("leaveSnippet");
+
+      // On a variable: new line below, the name pre-filled and selected.
+      editor.selection = new vscode.Selection(3, 1, 3, 1);
+      await vscode.commands.executeCommand("siren.insert");
+      assert.equal(editor.document.lineAt(4).text, "siren(total)");
+      assert.equal(editor.document.getText(editor.selection), "total");
+      await vscode.commands.executeCommand("leaveSnippet");
+
+      // On a keyword ("if"): nothing pre-filled, and indented into the block.
+      editor.selection = new vscode.Selection(5, 0, 5, 0);
+      await vscode.commands.executeCommand("siren.insert");
+      assert.equal(editor.document.lineAt(6).text, "    siren()");
+    } finally {
+      await vscode.commands.executeCommand("leaveSnippet");
+      await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    }
+  });
+
   await check("every Actions panel item runs a registered command", async () => {
     const { GROUPS } = await import("../actions");
     const registered = new Set(await vscode.commands.getCommands(true));
