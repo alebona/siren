@@ -122,6 +122,37 @@ export async function run(): Promise<void> {
     assert.equal(event.line, 3);
   });
 
+  await check("Ctrl+Alt+S with nothing under the cursor adds siren() and puts the cursor inside", async () => {
+    const file = path.join(ws, "empty-insert.py");
+    fs.writeFileSync(file, "from siren import siren\nx = 1\n\ntotal = x + 1\nif x:\n    pass\n");
+    const editor = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(file));
+    try {
+      // Blank line: inserted right there, cursor between the parentheses.
+      editor.selection = new vscode.Selection(2, 0, 2, 0);
+      await vscode.commands.executeCommand("siren.insert");
+      assert.equal(editor.document.lineAt(2).text, "siren()");
+      assert.deepEqual([editor.selection.active.line, editor.selection.active.character], [2, 6]);
+      await editor.edit((b) => b.insert(editor.selection.active, "x * 2"));
+      assert.equal(editor.document.lineAt(2).text, "siren(x * 2)");
+      await vscode.commands.executeCommand("leaveSnippet");
+
+      // On a variable: new line below, the name pre-filled and selected.
+      editor.selection = new vscode.Selection(3, 1, 3, 1);
+      await vscode.commands.executeCommand("siren.insert");
+      assert.equal(editor.document.lineAt(4).text, "siren(total)");
+      assert.equal(editor.document.getText(editor.selection), "total");
+      await vscode.commands.executeCommand("leaveSnippet");
+
+      // On a keyword ("if"): nothing pre-filled, and indented into the block.
+      editor.selection = new vscode.Selection(5, 0, 5, 0);
+      await vscode.commands.executeCommand("siren.insert");
+      assert.equal(editor.document.lineAt(6).text, "    siren()");
+    } finally {
+      await vscode.commands.executeCommand("leaveSnippet");
+      await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    }
+  });
+
   await check("every Actions panel item runs a registered command", async () => {
     const { GROUPS } = await import("../actions");
     const registered = new Set(await vscode.commands.getCommands(true));
@@ -162,6 +193,36 @@ export async function run(): Promise<void> {
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(file));
     await vscode.commands.executeCommand("siren.runFile");
     await waitFor(async () => ((await captured()) > before ? true : undefined), "the run to report a value", 60000);
+  });
+
+  await check("Enable for this environment: siren() works in a process started outside VS Code", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const venv = path.join(ws, ".venv-enable");
+    const system = process.platform === "win32" ? "python" : "python3";
+    execFileSync(system, ["-m", "venv", venv]);
+    const venvPython = path.join(venv, process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+    const config = vscode.workspace.getConfiguration("siren");
+    await config.update("pythonPath", venvPython, vscode.ConfigurationTarget.Workspace);
+    // A process with none of VS Code's variables, like a server or an AI
+    // assistant would start.
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.PYTHONPATH;
+    delete cleanEnv.SIREN_VSCODE_EVENTS;
+    const script = path.join(ws, "outside.py");
+    fs.writeFileSync(script, "siren(6 * 7)\nprint('ran')\n");
+    const captured = () => vscode.commands.executeCommand<number>("siren._capturedCount");
+    try {
+      const before = await captured();
+      await vscode.commands.executeCommand("siren.enableEnvironment");
+      const out = execFileSync(venvPython, [script], { env: cleanEnv }).toString();
+      assert.match(out, /ran/);
+      await waitFor(async () => ((await captured()) > before ? true : undefined), "the value from outside VS Code");
+
+      await vscode.commands.executeCommand("siren.disableEnvironment");
+      assert.throws(() => execFileSync(venvPython, [script], { env: cleanEnv, stdio: "pipe" }), /NameError/);
+    } finally {
+      await config.update("pythonPath", undefined, vscode.ConfigurationTarget.Workspace);
+    }
   });
 
   console.log(["Siren integration suite:", ...results].join("\n"));

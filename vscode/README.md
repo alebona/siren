@@ -15,7 +15,7 @@ for i in range(3):
     siren(i, label="loop")   🧜 i = 2 (last of 3)
 ```
 
-**Insert a call.** Put the cursor on a variable, or select an expression, and press `Ctrl+Alt+S` (`Cmd+Alt+S` on macOS). Siren wraps the selection in `siren(...)`, or logs the variable on a new line below, and adds `from siren import siren` if the file doesn't have it.
+**Insert a call.** Press `Ctrl+Alt+S` (`Cmd+Alt+S` on macOS): Siren adds `siren()` with the cursor between the parentheses, ready to type (on a blank line, right there; otherwise on a new line below). With the cursor on a variable, its name comes pre-filled and selected. With an expression selected, it wraps it in `siren(...)`. It also adds `from siren import siren` if the file doesn't have it.
 
 **Highlighted calls.** Lines with `siren(...)` or `@siren.*` decorators are tinted and marked in the scrollbar, and the status bar shows how many the current file has, so none slip into a commit.
 
@@ -52,7 +52,11 @@ The extension adds its bundled `siren` package to `PYTHONPATH` for:
 
 A `sitecustomize` module then registers `siren` as a builtin, so calls work even without the import. Any `sitecustomize` your environment already has still runs.
 
-Programs started outside VS Code don't get the runtime, so remove the calls before you ship. Terminals that were already open when the extension started don't get it either; open a new one.
+Terminals that were already open when the extension started don't get it; open a new one.
+
+**Everywhere else.** Servers you start outside VS Code, external terminals, task runners and scripts that an AI assistant runs for you don't go through those terminals. Run **Siren: Enable for This Python Environment** (or **Enable everywhere** in the Actions panel) once per project: it adds a small `.pth` file to the project's interpreter (its virtualenv, or your user site-packages for a global Python), so every program that interpreter runs gets `siren()` without an import and reports its values to the editor. It keeps working when the extension updates. **Siren: Disable for This Python Environment** removes it.
+
+Machines that don't have the extension (CI, production) never get the runtime, so remove the calls before you ship.
 
 ## Settings
 

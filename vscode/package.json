@@ -2,7 +2,7 @@
   "name": "siren",
   "displayName": "Siren",
   "description": "Print-debugging for Python without the cleanup: siren(x) values inline in the editor, one-click removal, code checks, snippets and an HTTP client.",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "publisher": "alebona",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -76,6 +76,16 @@
         "title": "Run Python File with Siren",
         "category": "Siren",
         "icon": "$(play)"
+      },
+      {
+        "command": "siren.enableEnvironment",
+        "title": "Enable for This Python Environment (siren() everywhere, no import)",
+        "category": "Siren"
+      },
+      {
+        "command": "siren.disableEnvironment",
+        "title": "Disable for This Python Environment",
+        "category": "Siren"
       },
       {
         "command": "siren.checkQuality",

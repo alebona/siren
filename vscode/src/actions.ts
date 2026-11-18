@@ -25,7 +25,7 @@ export const GROUPS: Group[] = [
       {
         label: "Insert siren()",
         description: "Ctrl+Alt+S",
-        tooltip: "Log the variable under the cursor, or wrap the selection in siren(...)",
+        tooltip: "Add siren() with the cursor inside, ready to type; or wrap the selection in siren(...)",
         icon: "add",
         command: "siren.insert",
       },
@@ -34,6 +34,13 @@ export const GROUPS: Group[] = [
         tooltip: "Run this Python file in a new terminal with Siren loaded; values show at the end of each line",
         icon: "play",
         command: "siren.runFile",
+      },
+      {
+        label: "Enable everywhere",
+        tooltip:
+          "Make siren() work without an import in every program this project's Python runs, not only in VS Code terminals: servers, external terminals, scripts run by other tools",
+        icon: "globe",
+        command: "siren.enableEnvironment",
       },
       {
         label: "Captured values",

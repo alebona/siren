@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- **Enable everywhere** (`Siren: Enable for This Python Environment`, also in the Actions panel): makes `siren()` work without an import in every program the project's Python runs, not only in VS Code terminals: servers, external terminals, task runners, scripts run by AI assistants. Their values show in the editor too. `Siren: Disable for This Python Environment` undoes it. It keeps working across extension updates.
+- **Insert siren()** (`Ctrl+Alt+S`) no longer needs something typed first. With nothing selected it adds `siren()` and leaves the cursor between the parentheses: right there on a blank line, or on a new indented line below. A variable under the cursor comes pre-filled and selected, so you can keep it or type over it. With a selection, it still wraps it in `siren(...)`.
+
 ## 1.2.1
 
 - New icon: a crystal mermaid tail rising from the water.
