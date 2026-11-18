@@ -2,11 +2,11 @@
   "name": "siren",
   "displayName": "Siren",
   "description": "Print-debugging for Python without the cleanup: siren(x) values inline in the editor, one-click removal, code checks, snippets and an HTTP client.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "alebona",
   "icon": "media/icon.png",
   "galleryBanner": {
-    "color": "#2A1660",
+    "color": "#16306E",
     "theme": "dark"
   },
   "license": "MIT",
@@ -363,19 +363,23 @@
       "siren": [
         {
           "id": "siren.actions",
-          "name": "Actions"
+          "name": "Actions",
+          "initialSize": 4
         },
         {
           "id": "siren.calls",
-          "name": "Calls"
+          "name": "Calls",
+          "initialSize": 2
         },
         {
           "id": "siren.snippets",
-          "name": "Snippets"
+          "name": "Snippets",
+          "initialSize": 2
         },
         {
           "id": "siren.requests",
-          "name": "HTTP Requests"
+          "name": "HTTP Requests",
+          "initialSize": 1.5
         }
       ]
     },

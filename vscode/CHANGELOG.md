@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1
+
+- New icon: a crystal mermaid tail rising from the water.
+- Python 2.7: `siren()`, `label`, `@siren.trace`, `siren.diff`, `siren.breakpoint()` and `siren.memory()` no longer crash the program on accented text (`UnicodeEncodeError`), so values reach the editor again. Every Python-side feature is now tested on Python 2.7 in CI.
+- Removing calls now works on Python 2 projects. A file that the selected Python can't compile as it stands (for example Python 2 code checked by Python 3) was always left untouched; Siren now works out where a `pass` is needed from the code's structure. Files with a `# -*- coding: utf-8 -*-` line no longer fail the check on Python 2.7.
+- Shorter labels in the Actions panel, so none are cut off at the default sidebar width; the longer explanation now shows on hover.
+- Better starting proportions for the sidebar sections: Actions gets the most room, and an empty Calls list no longer leaves a large gap.
+
 ## 1.2.0
 
 - New **Calls** section in the Siren sidebar: every `siren()` call in the workspace, grouped by file, with its line and last captured value. Click one to jump to it. It updates as you edit (unsaved changes included), create and delete files, and skips `.venv`, `node_modules` and other installed code.

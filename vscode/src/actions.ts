@@ -1,8 +1,12 @@
 import * as vscode from "vscode";
 
 interface Action {
+  /** Short, so it fits the default sidebar width. */
   label: string;
+  /** Only for something short like a key binding. */
   description?: string;
+  /** The longer explanation, shown on hover. */
+  tooltip: string;
   icon: string;
   command: string;
 }
@@ -18,28 +22,79 @@ export const GROUPS: Group[] = [
     label: "Debug",
     icon: "debug-alt",
     actions: [
-      { label: "Insert siren()", description: "Ctrl+Alt+S", icon: "add", command: "siren.insert" },
-      { label: "Run current file", description: "values show inline", icon: "play", command: "siren.runFile" },
-      { label: "Show captured values", icon: "output", command: "siren.showOutput" },
-      { label: "Clear inline values", icon: "clear-all", command: "siren.clearInlineValues" },
+      {
+        label: "Insert siren()",
+        description: "Ctrl+Alt+S",
+        tooltip: "Log the variable under the cursor, or wrap the selection in siren(...)",
+        icon: "add",
+        command: "siren.insert",
+      },
+      {
+        label: "Run current file",
+        tooltip: "Run this Python file in a new terminal with Siren loaded; values show at the end of each line",
+        icon: "play",
+        command: "siren.runFile",
+      },
+      {
+        label: "Captured values",
+        tooltip: "Every value siren() has printed, in the Siren output channel",
+        icon: "output",
+        command: "siren.showOutput",
+      },
+      {
+        label: "Clear inline values",
+        tooltip: "Hide the values shown at the end of lines",
+        icon: "clear-all",
+        command: "siren.clearInlineValues",
+      },
     ],
   },
   {
     label: "Clean up",
     icon: "trash",
     actions: [
-      { label: "Remove siren() from this file", icon: "file", command: "siren.cleanFile" },
-      { label: "Remove siren() from workspace", description: "with preview", icon: "files", command: "siren.cleanWorkspace" },
+      {
+        label: "Remove from this file",
+        tooltip: "Remove every siren() call and import from the current file",
+        icon: "file",
+        command: "siren.cleanFile",
+      },
+      {
+        label: "Remove from workspace",
+        tooltip: "Remove siren() calls from every file in the workspace, after showing which files will change",
+        icon: "files",
+        command: "siren.cleanWorkspace",
+      },
     ],
   },
   {
     label: "Code",
     icon: "code",
     actions: [
-      { label: "Check this file", description: "code quality", icon: "file-code", command: "siren.checkQualityFile" },
-      { label: "Check workspace", description: "code quality", icon: "checklist", command: "siren.checkQuality" },
-      { label: "Check .env", description: "vs .env.example", icon: "symbol-key", command: "siren.checkEnv" },
-      { label: "New from template...", icon: "new-file", command: "siren.newFromTemplate" },
+      {
+        label: "Check this file",
+        tooltip: "Code quality for the current file: unused code, bare except, leftover breakpoints, TODOs, complexity",
+        icon: "file-code",
+        command: "siren.checkQualityFile",
+      },
+      {
+        label: "Check workspace",
+        tooltip: "Code quality for every Python file in the workspace; results in the Problems panel",
+        icon: "checklist",
+        command: "siren.checkQuality",
+      },
+      {
+        label: "Check .env",
+        tooltip: "Compare .env with .env.example and mark keys missing from either",
+        icon: "symbol-key",
+        command: "siren.checkEnv",
+      },
+      {
+        label: "New from template",
+        tooltip: "Create a script, class, data class, test or package",
+        icon: "new-file",
+        command: "siren.newFromTemplate",
+      },
     ],
   },
 ];
@@ -63,6 +118,7 @@ export class ActionsView implements vscode.TreeDataProvider<Node> {
     }
     const item = new vscode.TreeItem(node.label);
     item.description = node.description;
+    item.tooltip = node.tooltip;
     item.iconPath = new vscode.ThemeIcon(node.icon);
     item.command = { command: node.command, title: node.label };
     return item;

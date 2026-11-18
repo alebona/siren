@@ -133,7 +133,25 @@ def _ensure_text(value):
     try:
         return value.decode("utf-8")
     except UnicodeDecodeError:
-        return value.decode("utf-8", errors="replace")
+        return value.decode("utf-8", "replace")
+
+
+_PY2 = sys.version_info[0] < 3
+
+
+def _fmt(template, *args):
+    """
+    str.format that also works with accented text on Python 2.
+
+    There, a format string literal is bytes while names read from source
+    (and unicode values) are text, and mixing them raises UnicodeEncodeError
+    on the first non-ASCII character, e.g. siren("preços"). Decode every
+    byte string first so the whole message is text. Python 3 is unchanged.
+    """
+    if not _PY2:
+        return template.format(*args)
+    text = lambda v: _ensure_text(v) if isinstance(v, bytes) else v
+    return text(template).format(*[text(a) for a in args])
 
 
 def _get_call_source(frame):
@@ -256,7 +274,7 @@ def _prefix(frame, label=None):
 
     lineno = frame.f_lineno
 
-    base = "{}[{} SIREN {} {}:{}]{}".format(
+    base = _fmt("{}[{} SIREN {} {}:{}]{}", 
         COLOR,
         EMOJI,
         _format_timestamp(),
@@ -266,7 +284,7 @@ def _prefix(frame, label=None):
     )
 
     if label:
-        base += " {}{}{}".format(COLOR, label, RESET)
+        base += _fmt(" {}{}{}", COLOR, label, RESET)
 
     return base
 
@@ -354,14 +372,14 @@ def siren(*values, **kwargs):
                 text = v if isinstance(v, text_type) else str(v)
             else:
                 text = pprint.pformat(v)
-            output = "{} {}{} = {}{}".format(prefix, COLOR, name, text, RESET)
+            output = _fmt("{} {}{} = {}{}", prefix, COLOR, name, text, RESET)
 
             _print_output(output)
             _emit_editor_event(frame, name, text, label)
 
         if timeit:
             elapsed = time.time() - start
-            timer_output = "{}[{} SIREN TIME {}] {}{:.6f}s{}".format(
+            timer_output = _fmt("{}[{} SIREN TIME {}] {}{:.6f}s{}", 
                 COLOR,
                 EMOJI,
                 _format_timestamp(),
@@ -409,12 +427,12 @@ def _format_trace_args(func, args, kwargs):
 
         for name, value in arguments:
             formatted = _format_value_for_trace(value, max_len=60)
-            parts.append("{}={}".format(name, formatted))
+            parts.append(_fmt("{}={}", name, formatted))
 
         return ", ".join(parts)
     except (TypeError, ValueError):
         parts = [repr(value) for value in args]
-        parts += ["{}={}".format(name, repr(value)) for name, value in kwargs.items()]
+        parts += [_fmt("{}={}", name, repr(value)) for name, value in kwargs.items()]
         return ", ".join(parts)
 
 
@@ -438,9 +456,9 @@ def trace(func=None, **options):
     def decorator(target):
         def wrapper(*args, **kwargs):
             arg_text = _format_trace_args(target, args, kwargs) if show_args else ""
-            call_label = "Calling {}".format(target.__name__)
+            call_label = _fmt("Calling {}", target.__name__)
             if arg_text:
-                call_label += "({})".format(arg_text)
+                call_label += _fmt("({})", arg_text)
             else:
                 call_label += "()"
 
@@ -455,26 +473,26 @@ def trace(func=None, **options):
                 exception_occurred = True
                 exc_type = type(e).__name__
                 exc_msg = str(e)
-                siren.info("Exception in {} -> {}: {}".format(target.__name__, exc_type, exc_msg))
+                siren.info(_fmt("Exception in {} -> {}: {}", target.__name__, exc_type, exc_msg))
                 raise
             finally:
                 if not exception_occurred:
                     elapsed_text = ""
                     if timeit:
                         elapsed = _perf_counter() - start
-                        elapsed_text = " ({:.6f}s)".format(elapsed)
+                        elapsed_text = _fmt(" ({:.6f}s)", elapsed)
 
                     if show_return and result is not None:
                         result_text = _format_value_for_trace(result, max_len=100)
-                        type_text = " [{}]".format(type(result).__name__) if show_type else ""
+                        type_text = _fmt(" [{}]", type(result).__name__) if show_type else ""
                         siren.info(
-                            "Returned from {} -> {}{}{}".format(
+                            _fmt("Returned from {} -> {}{}{}", 
                                 target.__name__, result_text, type_text, elapsed_text
                             )
                         )
                     elif show_return and result is None and timeit:
                         siren.info(
-                            "Completed {} (None){}".format(
+                            _fmt("Completed {} (None){}", 
                                 target.__name__, elapsed_text
                             )
                         )
@@ -529,7 +547,7 @@ def diff(obj1, obj2, label="DIFF"):
     prefix = _prefix(frame, label)
 
     if type(obj1) != type(obj2):
-        _print_output("{} {}Type mismatch: {} vs {}{}".format(
+        _print_output(_fmt("{} {}Type mismatch: {} vs {}{}", 
             prefix, COLOR, type(obj1).__name__, type(obj2).__name__, RESET
         ))
         return
@@ -539,16 +557,16 @@ def diff(obj1, obj2, label="DIFF"):
 
         for key in sorted(all_keys):
             if key not in obj1:
-                _print_output("{} {}[+] {}: {} (new){}".format(
+                _print_output(_fmt("{} {}[+] {}: {} (new){}", 
                     prefix, COLOR, key, pprint.pformat(obj2[key]), RESET
                 ))
             elif key not in obj2:
-                _print_output("{} {}[-] {}: {} (removed){}".format(
+                _print_output(_fmt("{} {}[-] {}: {} (removed){}", 
                     prefix, COLOR, key, pprint.pformat(obj1[key]), RESET
                 ))
             elif obj1[key] != obj2[key]:
                 _print_output(
-                    "{} {}[~] {}: {} → {} (changed){}".format(
+                    _fmt("{} {}[~] {}: {} → {} (changed){}", 
                         prefix, COLOR, key, pprint.pformat(obj1[key]), pprint.pformat(obj2[key]), RESET
                     )
                 )
@@ -558,26 +576,26 @@ def diff(obj1, obj2, label="DIFF"):
 
         for i in range(max_len):
             if i >= len(obj1):
-                _print_output("{} {}[+] [{}]: {} (new){}".format(
+                _print_output(_fmt("{} {}[+] [{}]: {} (new){}", 
                     prefix, COLOR, i, pprint.pformat(obj2[i]), RESET
                 ))
             elif i >= len(obj2):
-                _print_output("{} {}[-] [{}]: {} (removed){}".format(
+                _print_output(_fmt("{} {}[-] [{}]: {} (removed){}", 
                     prefix, COLOR, i, pprint.pformat(obj1[i]), RESET
                 ))
             elif obj1[i] != obj2[i]:
                 _print_output(
-                    "{} {}[~] [{}]: {} → {} (changed){}".format(
+                    _fmt("{} {}[~] [{}]: {} → {} (changed){}", 
                         prefix, COLOR, i, pprint.pformat(obj1[i]), pprint.pformat(obj2[i]), RESET
                     )
                 )
 
     else:
         if obj1 == obj2:
-            _print_output("{} {}No differences{}".format(prefix, COLOR, RESET))
+            _print_output(_fmt("{} {}No differences{}", prefix, COLOR, RESET))
         else:
-            _print_output("{} {}Before: {}{}".format(prefix, COLOR, pprint.pformat(obj1), RESET))
-            _print_output("{} {}After: {}{}".format(prefix, COLOR, pprint.pformat(obj2), RESET))
+            _print_output(_fmt("{} {}Before: {}{}", prefix, COLOR, pprint.pformat(obj1), RESET))
+            _print_output(_fmt("{} {}After: {}{}", prefix, COLOR, pprint.pformat(obj2), RESET))
 
 
 def breakpoint_debug():
@@ -593,15 +611,15 @@ def breakpoint_debug():
     prefix = _prefix(frame, "BREAKPOINT")
 
     local_vars = frame.f_locals
-    _print_output("{} {}=== BREAKPOINT ==={}".format(prefix, COLOR, RESET))
-    _print_output("{} {}Locals:{}".format(prefix, COLOR, RESET))
+    _print_output(_fmt("{} {}=== BREAKPOINT ==={}", prefix, COLOR, RESET))
+    _print_output(_fmt("{} {}Locals:{}", prefix, COLOR, RESET))
 
     for name, value in sorted(local_vars.items()):
         if not name.startswith("_"):
             formatted = _format_value_for_trace(value, max_len=80)
-            _print_output("{} {}  {} = {}{}".format(prefix, COLOR, name, formatted, RESET))
+            _print_output(_fmt("{} {}  {} = {}{}", prefix, COLOR, name, formatted, RESET))
 
-    _print_output("{} {}Press Ctrl+C to continue or 'd' for debugger...{}".format(prefix, COLOR, RESET))
+    _print_output(_fmt("{} {}Press Ctrl+C to continue or 'd' for debugger...{}", prefix, COLOR, RESET))
 
     try:
         if sys.stdin.isatty():
@@ -612,16 +630,16 @@ def breakpoint_debug():
     except (EOFError, KeyboardInterrupt):
         pass
 
-    _print_output("{} {}Continuing execution...{}".format(prefix, COLOR, RESET))
+    _print_output(_fmt("{} {}Continuing execution...{}", prefix, COLOR, RESET))
 
 
 def _format_bytes(num_bytes):
     value = float(num_bytes)
     for unit in ("B", "KB", "MB", "GB"):
         if value < 1024.0:
-            return "{:.1f}{}".format(value, unit)
+            return _fmt("{:.1f}{}", value, unit)
         value /= 1024.0
-    return "{:.1f}TB".format(value)
+    return _fmt("{:.1f}TB", value)
 
 
 def memory(label=None, top=0):
@@ -636,21 +654,21 @@ def memory(label=None, top=0):
     prefix = _prefix(frame, label or "MEMORY")
 
     if tracemalloc is None:
-        _print_output("{} {}memory() requires Python 3.4+ (tracemalloc unavailable){}".format(prefix, COLOR, RESET))
+        _print_output(_fmt("{} {}memory() requires Python 3.4+ (tracemalloc unavailable){}", prefix, COLOR, RESET))
         return
 
     if not tracemalloc.is_tracing():
         tracemalloc.start()
 
     current, peak = tracemalloc.get_traced_memory()
-    _print_output("{} {}current={} peak={}{}".format(
+    _print_output(_fmt("{} {}current={} peak={}{}", 
         prefix, COLOR, _format_bytes(current), _format_bytes(peak), RESET
     ))
 
     if top > 0:
         snapshot = tracemalloc.take_snapshot()
         for stat in snapshot.statistics("lineno")[:top]:
-            _print_output("{} {}  {}{}".format(prefix, COLOR, stat, RESET))
+            _print_output(_fmt("{} {}  {}{}", prefix, COLOR, stat, RESET))
 
 
 class _CatchContext(object):
@@ -669,7 +687,7 @@ class _CatchContext(object):
 
         formatted = traceback.format_exception(exc_type, exc_value, exc_tb)
         for line in "".join(formatted).rstrip("\n").split("\n"):
-            _print_output("{} {}{}{}".format(prefix, COLOR, line, RESET))
+            _print_output(_fmt("{} {}{}{}", prefix, COLOR, line, RESET))
 
         return False  # never suppress the exception
 
