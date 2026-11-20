@@ -8,6 +8,10 @@ Built for framework projects, starting with Django.
 - **The status bar 🧜 opens a menu**: remove the calls from this file, from the whole workspace, or list them all.
 - **Removing calls from the whole workspace** is fast on big projects and shows its progress: it only touches the files the Calls list knows about, instead of walking every folder (a virtualenv with an unusual name could mean thousands of files and no visible response).
 - Removing calls works on files saved in Latin-1 or another encoding declared with `# -*- coding: ... -*-`, and writes them back in the same encoding. A file that can't be processed is reported and skipped instead of stopping the rest.
+- **`@siren.trace` and `@siren.profile` work on framework views.** They used to replace the view with a `wrapper(*args, **kwargs)`: a Flask app with two traced routes failed to start and FastAPI answered 422. They now keep the function's name, docstring and signature, and await `async def` views.
+- **Removing calls handles every way siren appears in code**: decorators (`@siren.trace`), attribute calls (`siren.diff(...)`), `siren(x)` inside an expression (`total = siren(compute())` becomes `total = compute()`; it used to delete the whole line) and `with siren.catch():` (the header goes, its block moves left). A use it can't remove safely is reported, not deleted.
+- **Python 2.7**: unicode values (most Django strings) show as text (José) instead of `u'Jos\xe9'`, and `@siren.trace` no longer crashes on accented return values or exception messages (which also hid the original error).
+- Tested end to end with each framework's own dev server and autoreloader: Django 5.1, Flask 3.1 and FastAPI 0.115 on Python 3.12 (Linux, Windows, macOS), and Django 1.11 and Flask 1.1 on Python 2.7, on every change.
 - `siren-clean` skips virtualenvs whatever their name (`pyvenv.cfg`, `activate` scripts, `site-packages`) and accepts several files at once.
 
 ## 1.2.3
