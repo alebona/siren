@@ -410,7 +410,8 @@ def _truncate_str(text, max_len=80):
 def _format_value_for_trace(value, max_len=80):
     """Format a value for trace output with truncation."""
     if _is_simple(value):
-        return str(value)
+        # str() on Python 2 unicode with accents raises UnicodeEncodeError.
+        return value if isinstance(value, text_type) else str(value)
     text = pprint.pformat(value)
     return _truncate_str(text, max_len)
 
@@ -438,6 +439,17 @@ def _format_trace_args(func, args, kwargs):
         parts = [repr(value) for value in args]
         parts += [_fmt("{}={}", name, repr(value)) for name, value in kwargs.items()]
         return ", ".join(parts)
+
+
+def _exception_text(e):
+    """The exception's message as text. On Python 2, str() raises on a
+    unicode message with accents, e.g. Django's ValidationError(u"preço")."""
+    if not _PY2:
+        return str(e)
+    try:
+        return unicode(e)  # noqa: F821 (Python 2 only)
+    except Exception:
+        return _ensure_text(repr(e))
 
 
 def _is_async(func):
@@ -499,7 +511,7 @@ def trace(func=None, **options):
             return _perf_counter() if timeit else None
 
         def on_error(e, start):
-            siren.info(_fmt("Exception in {} -> {}: {}", target.__name__, type(e).__name__, str(e)))
+            siren.info(_fmt("Exception in {} -> {}: {}", target.__name__, type(e).__name__, _exception_text(e)))
 
         def after(result, start):
             elapsed_text = _fmt(" ({:.6f}s)", _perf_counter() - start) if timeit else ""

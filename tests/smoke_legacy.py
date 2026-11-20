@@ -55,6 +55,17 @@ def aplicar(nome, descricao=u"ação"):
 
 
 aplicar(u"Manutenção")
+
+
+@siren.trace
+def validar():
+    raise ValueError(u"preço inválido")
+
+
+try:
+    validar()
+except ValueError:
+    pass
 siren.diff({u"preço": 1, "nome": "ação"}, {u"preço": 2, "nome": "ação"})
 print("fim")
 '''
@@ -134,6 +145,7 @@ def main():
         out, err = run([sys.executable, script], proj, env)
         assert u"preços" in out, out
         assert u"Returned from aplicar" in out, out  # @siren.trace
+        assert u"Exception in validar -> ValueError: preço inválido" in out, out
         assert u"(changed)" in out, out  # siren.diff
         assert out.rstrip().endswith(u"fim"), out  # the script ran to the end
         assert not err.strip(), err
