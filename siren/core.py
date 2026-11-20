@@ -72,7 +72,10 @@ def find_project_root(start_path):
 
 
 def _is_simple(value):
-    return isinstance(value, (int, float, str, bool, type(None)))
+    # text_type too: on Python 2 that's unicode, which most Django strings
+    # are (database fields, forms, request data). Printed through repr they'd
+    # show as u'Jos\xe9' instead of José.
+    return isinstance(value, (int, float, str, text_type, bool, type(None)))
 
 
 def _format_timestamp():

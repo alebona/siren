@@ -148,6 +148,8 @@ def main():
         assert u"preços" in first["value"], first
         labelled = [l for l in lines if l.get("label")]
         assert labelled and labelled[0]["label"] == u"rótulo", lines
+        # Unicode text reads as itself, not u'a\xe7\xe3o' (Python 2's repr).
+        assert labelled[0]["value"] == u"texto unicode: ação", labelled[0]
 
     @check("a child process (like Django runserver's autoreloader) has siren() too")
     def _():
