@@ -11,11 +11,13 @@ import { QualityChecker } from "./quality";
 import { Runtime } from "./runtime";
 import { newFromTemplate } from "./scaffold";
 import {
+  findSirenLines,
   hasSirenImport,
   importInsertLine,
   indentAfter,
   parseCleanPreview,
   parseRemovedCount,
+  parseSkipped,
 } from "./sirenCalls";
 import { SnippetsView } from "./snippets";
 import { CallsView, WorkspaceCalls } from "./workspaceCalls";
@@ -27,6 +29,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const quality = new QualityChecker(runtime);
   const env = new EnvChecker();
   const calls = new WorkspaceCalls();
+  const actions = new ActionsView();
+  findManagePy().then((found) => actions.setDjango(found.length > 0));
 
   context.subscriptions.push(
     runtime,
@@ -44,13 +48,15 @@ export function activate(context: vscode.ExtensionContext): void {
       calls.entries().map((e) => `${vscode.workspace.asRelativePath(e.uri)}:${e.calls.map((c) => c.line).join(",")}`),
     ),
     vscode.commands.registerCommand("siren._capturedCount", () => inline.captured),
-    vscode.window.registerTreeDataProvider("siren.actions", new ActionsView()),
+    vscode.window.registerTreeDataProvider("siren.actions", actions),
     vscode.commands.registerCommand("siren.checkEnv", () => env.report()),
     new SnippetsView(runtime),
     new RequestsView(runtime),
     vscode.commands.registerCommand("siren.insert", insertSiren),
     vscode.commands.registerCommand("siren.cleanFile", () => cleanFile(runtime)),
-    vscode.commands.registerCommand("siren.cleanWorkspace", () => cleanWorkspace(runtime)),
+    vscode.commands.registerCommand("siren.cleanWorkspace", () => cleanWorkspace(runtime, calls)),
+    vscode.commands.registerCommand("siren.statusMenu", () => statusMenu(calls)),
+    vscode.commands.registerCommand("siren.runDjango", () => runDjango(runtime)),
     vscode.commands.registerCommand("siren.clearInlineValues", () => inline.clear()),
     vscode.commands.registerCommand("siren.showOutput", () => showCapturedValues(inline, output)),
     vscode.commands.registerCommand("siren.runFile", (uri?: vscode.Uri) => runFile(runtime, uri)),
@@ -76,6 +82,50 @@ async function showCapturedValues(inline: InlineValues, output: vscode.OutputCha
   if (choice === run) {
     await vscode.commands.executeCommand("siren.runFile");
   }
+}
+
+/** manage.py files in the workspace, outside virtualenvs and installed packages. */
+export async function findManagePy(): Promise<vscode.Uri[]> {
+  return vscode.workspace.findFiles(
+    "**/manage.py",
+    "**/{.venv,venv,env,node_modules,site-packages,.git,.tox}/**",
+    10,
+  );
+}
+
+/**
+ * Start the Django dev server in a new terminal with Siren loaded, so every
+ * siren() in views, models and the rest reports to the editor. The
+ * autoreloader's child process inherits the same environment.
+ */
+async function runDjango(runtime: Runtime): Promise<void> {
+  const found = await findManagePy();
+  if (!found.length) {
+    vscode.window.showInformationMessage("Siren: no manage.py in this workspace, so it isn't a Django project.");
+    return;
+  }
+  let manage = found[0];
+  if (found.length > 1) {
+    const pick = await vscode.window.showQuickPick(
+      found.map((uri) => ({ label: vscode.workspace.asRelativePath(uri), uri })),
+      { placeHolder: "Which Django project?" },
+    );
+    if (!pick) {
+      return;
+    }
+    manage = pick.uri;
+  }
+  const python = await resolvePython(manage);
+  const args = vscode.workspace.getConfiguration("siren").get<string[]>("django.runserverArgs", ["runserver"]);
+  const terminal = vscode.window.createTerminal({
+    name: "Siren: Django",
+    // Runs python directly (no shell), so paths with spaces need no quoting.
+    shellPath: python,
+    shellArgs: [manage.fsPath, ...args],
+    cwd: path.dirname(manage.fsPath),
+    env: runtime.env(),
+  });
+  terminal.show();
 }
 
 /** Run a Python file in a new terminal with the Siren runtime, so its values show up. */
@@ -188,21 +238,90 @@ async function cleanFile(runtime: Runtime): Promise<void> {
   await runClean(runtime, file, path.dirname(file), doc.uri, path.basename(file));
 }
 
-async function cleanWorkspace(runtime: Runtime): Promise<void> {
-  const folders = vscode.workspace.workspaceFolders ?? [];
-  if (!folders.length) {
-    vscode.window.showInformationMessage("Siren: open a folder first.");
+/**
+ * Remove calls from every file the Calls list knows about. Only those files
+ * are touched, so a big project (or a virtualenv with an unusual name inside
+ * it) doesn't mean walking and parsing thousands of files.
+ */
+async function cleanWorkspace(runtime: Runtime, calls: WorkspaceCalls): Promise<void> {
+  const entries = calls.entries();
+  if (!entries.length) {
+    vscode.window.showInformationMessage("Siren: no siren() calls in this workspace.");
     return;
   }
-  const folder =
-    folders.length === 1
-      ? folders[0]
-      : await vscode.window.showWorkspaceFolderPick({ placeHolder: "Remove siren() calls from which folder?" });
-  if (!folder) {
+  const total = entries.reduce((sum, e) => sum + e.calls.length, 0);
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const picked = await vscode.window.showQuickPick(
+    [
+      { label: `$(trash) Remove ${plural(total, "call")} from ${plural(entries.length, "file")}`, remove: true },
+      ...entries.map((e) => ({
+        label: vscode.workspace.asRelativePath(e.uri),
+        description: plural(e.calls.length, "call"),
+        remove: false,
+      })),
+    ],
+    { placeHolder: "Files with siren() calls. Pick the first item to remove them all (a call alone in a block becomes pass)." },
+  );
+  if (!picked?.remove) {
     return;
   }
   await vscode.workspace.saveAll(false);
-  await runClean(runtime, folder.uri.fsPath, folder.uri.fsPath, folder.uri, folder.name);
+
+  const files = entries.map((e) => e.uri.fsPath);
+  const BATCH = 40; // keeps each command line well under the Windows length limit
+  let removed = 0;
+  const skipped: string[] = [];
+  try {
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: "Siren: removing siren() calls", cancellable: false },
+      async (progress) => {
+        for (let i = 0; i < files.length; i += BATCH) {
+          const batch = files.slice(i, i + BATCH);
+          progress.report({ message: `${Math.min(i + BATCH, files.length)}/${files.length} files`, increment: (batch.length / files.length) * 100 });
+          const cwd = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(batch[0]))?.uri.fsPath ?? path.dirname(batch[0]);
+          const result = await runModule(runtime, "siren.clean", batch, cwd, vscode.Uri.file(batch[0]));
+          removed += parseRemovedCount(result.stdout);
+          skipped.push(...parseSkipped(result.stdout));
+        }
+      },
+    );
+  } catch (error) {
+    vscode.window.showErrorMessage(`Siren: ${(error as Error).message}`);
+    return;
+  }
+  const done = `Siren: removed ${plural(removed, "line")} from ${plural(files.length, "file")}.`;
+  if (skipped.length) {
+    vscode.window.showWarningMessage(`${done} Skipped ${plural(skipped.length, "file")}: ${skipped.join("; ")}`);
+  } else {
+    vscode.window.showInformationMessage(done);
+  }
+}
+
+/** The status bar 🧜: this file or the whole workspace, or see the list. */
+async function statusMenu(calls: WorkspaceCalls): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  const here = editor?.document.languageId === "python" ? findSirenLines(editor.document.getText()).length : 0;
+  const total = calls.total();
+  const items: (vscode.QuickPickItem & { command: string })[] = [];
+  if (here > 0) {
+    items.push({
+      label: `$(file) Remove from this file`,
+      description: `${here} call${here === 1 ? "" : "s"}`,
+      command: "siren.cleanFile",
+    });
+  }
+  if (total > 0) {
+    items.push({
+      label: `$(files) Remove from the whole workspace`,
+      description: `${total} call${total === 1 ? "" : "s"} in ${calls.entries().length} file${calls.entries().length === 1 ? "" : "s"}`,
+      command: "siren.cleanWorkspace",
+    });
+  }
+  items.push({ label: "$(list-tree) Show all calls", description: "Siren → Calls", command: "siren.calls.focus" });
+  const picked = await vscode.window.showQuickPick(items, { placeHolder: "siren() calls" });
+  if (picked) {
+    await vscode.commands.executeCommand(picked.command);
+  }
 }
 
 async function runClean(

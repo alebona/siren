@@ -105,6 +105,14 @@ export function parseRemovedCount(output: string): number {
   return m ? Number(m[1]) : 0;
 }
 
+/** Files `siren-clean` reported and skipped ("! path (Error: message)"). */
+export function parseSkipped(output: string): string[] {
+  return output
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("! "))
+    .map((line) => line.slice(2).trim());
+}
+
 /** Parse `siren-clean --dry-run` output. */
 export function parseCleanPreview(output: string): CleanPreview {
   const files: { path: string; lines: number }[] = [];

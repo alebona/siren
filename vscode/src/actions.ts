@@ -9,6 +9,8 @@ interface Action {
   tooltip: string;
   icon: string;
   command: string;
+  /** Shown only in projects of this kind. */
+  onlyFor?: "django";
 }
 
 interface Group {
@@ -28,6 +30,14 @@ export const GROUPS: Group[] = [
         tooltip: "Add siren() with the cursor inside, ready to type; or wrap the selection in siren(...)",
         icon: "add",
         command: "siren.insert",
+      },
+      {
+        label: "Run Django server",
+        tooltip:
+          "Start manage.py runserver in a new terminal with Siren loaded: siren() in views, models and forms shows its value at the end of the line on each request",
+        icon: "server-process",
+        command: "siren.runDjango",
+        onlyFor: "django",
       },
       {
         label: "Run current file",
@@ -110,11 +120,23 @@ type Node = Group | Action;
 
 /** Top section of the Siren sidebar: every command one click away. */
 export class ActionsView implements vscode.TreeDataProvider<Node> {
+  private readonly changed = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.changed.event;
+  private django = false;
+
+  /** Show the Django actions once the workspace turns out to be a Django project. */
+  setDjango(isDjango: boolean): void {
+    if (this.django !== isDjango) {
+      this.django = isDjango;
+      this.changed.fire();
+    }
+  }
+
   getChildren(node?: Node): Node[] {
     if (!node) {
       return GROUPS;
     }
-    return "actions" in node ? node.actions : [];
+    return "actions" in node ? node.actions.filter((a) => !a.onlyFor || (a.onlyFor === "django" && this.django)) : [];
   }
 
   getTreeItem(node: Node): vscode.TreeItem {

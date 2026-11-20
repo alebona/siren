@@ -55,6 +55,17 @@ def aplicar(nome, descricao=u"ação"):
 
 
 aplicar(u"Manutenção")
+
+
+@siren.trace
+def validar():
+    raise ValueError(u"preço inválido")
+
+
+try:
+    validar()
+except ValueError:
+    pass
 siren.diff({u"preço": 1, "nome": "ação"}, {u"preço": 2, "nome": "ação"})
 print("fim")
 '''
@@ -121,7 +132,9 @@ def main():
     os.makedirs(proj)
     events = os.path.join(work, "events.jsonl")
     # What the extension sets for terminals and debug sessions.
-    pythonpath = os.pathsep.join([RUNTIME, ROOT])
+    # The repo root first, so `import siren` gets this checkout, not the copy
+    # npm build leaves in vscode/python; sitecustomize comes from there.
+    pythonpath = os.pathsep.join([ROOT, RUNTIME])
     env = env_with(PYTHONPATH=pythonpath, SIREN_VSCODE_EVENTS=events, HOME=home, USERPROFILE=home)
     print("Python %s" % sys.version.split()[0])
 
@@ -132,6 +145,7 @@ def main():
         out, err = run([sys.executable, script], proj, env)
         assert u"preços" in out, out
         assert u"Returned from aplicar" in out, out  # @siren.trace
+        assert u"Exception in validar -> ValueError: preço inválido" in out, out
         assert u"(changed)" in out, out  # siren.diff
         assert out.rstrip().endswith(u"fim"), out  # the script ran to the end
         assert not err.strip(), err
@@ -146,6 +160,22 @@ def main():
         assert u"preços" in first["value"], first
         labelled = [l for l in lines if l.get("label")]
         assert labelled and labelled[0]["label"] == u"rótulo", lines
+        # Unicode text reads as itself, not u'a\xe7\xe3o' (Python 2's repr).
+        assert labelled[0]["value"] == u"texto unicode: ação", labelled[0]
+
+    @check("a child process (like Django runserver's autoreloader) has siren() too")
+    def _():
+        manage = os.path.join(proj, "manage.py")
+        write(manage, u"""# -*- coding: utf-8 -*-
+import subprocess, sys
+if sys.argv[-1] == "child":
+    siren(u"view: pedido aprovado")
+else:
+    sys.exit(subprocess.call([sys.executable, __file__, "runserver", "child"]))
+""")
+        run([sys.executable, manage, "runserver"], proj, env)
+        values = [json.loads(l)["value"] for l in read(events).splitlines() if l.strip()]
+        assert u"view: pedido aprovado" in values, values
 
     legacy = os.path.join(proj, "servico.py")
 

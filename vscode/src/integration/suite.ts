@@ -209,6 +209,28 @@ export async function run(): Promise<void> {
     await waitFor(async () => ((await captured()) > before ? true : undefined), "the run to report a value", 60000);
   });
 
+  await check("Run Django server: siren() in the autoreloader's child process reaches the editor", async () => {
+    // Django isn't installed here: this manage.py does what runserver's
+    // autoreloader does, re-running itself in a child with the same environment.
+    const proj = path.join(ws, "djangoproj");
+    fs.mkdirSync(proj, { recursive: true });
+    fs.writeFileSync(
+      path.join(proj, "manage.py"),
+      [
+        "import subprocess, sys",
+        "if sys.argv[-1] == 'child':",
+        "    siren('from the reloader child')",
+        "else:",
+        "    subprocess.call([sys.executable, __file__] + sys.argv[1:] + ['child'])",
+        "",
+      ].join("\n"),
+    );
+    const captured = () => vscode.commands.executeCommand<number>("siren._capturedCount");
+    const before = await captured();
+    await vscode.commands.executeCommand("siren.runDjango");
+    await waitFor(async () => ((await captured()) > before ? true : undefined), "the child process's value", 60000);
+  });
+
   await check("Enable for this environment: siren() works in a process started outside VS Code", async () => {
     const { execFileSync } = await import("node:child_process");
     const venv = path.join(ws, ".venv-enable");
