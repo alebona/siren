@@ -147,6 +147,20 @@ def main():
         labelled = [l for l in lines if l.get("label")]
         assert labelled and labelled[0]["label"] == u"rótulo", lines
 
+    @check("a child process (like Django runserver's autoreloader) has siren() too")
+    def _():
+        manage = os.path.join(proj, "manage.py")
+        write(manage, u"""# -*- coding: utf-8 -*-
+import subprocess, sys
+if sys.argv[-1] == "child":
+    siren(u"view: pedido aprovado")
+else:
+    sys.exit(subprocess.call([sys.executable, __file__, "runserver", "child"]))
+""")
+        run([sys.executable, manage, "runserver"], proj, env)
+        values = [json.loads(l)["value"] for l in read(events).splitlines() if l.strip()]
+        assert u"view: pedido aprovado" in values, values
+
     legacy = os.path.join(proj, "servico.py")
 
     @check("code quality on a Python 2 file (bridge)")

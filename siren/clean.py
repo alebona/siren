@@ -28,11 +28,17 @@ EMOJI = "🧜‍"
 IGNORE_DIRS = {
     "venv",
     ".venv",
+    "env",
     "__pycache__",
     "doc",
     "docs",
     ".git",
+    ".hg",
+    ".svn",
+    ".tox",
+    ".nox",
     "node_modules",
+    "site-packages",
 }
 
 
@@ -240,14 +246,38 @@ def _remove_lines(lines, marked, path):
     return _rebuild(lines, marked, placeholders)
 
 
+_CODING_RE = re.compile(br"^[ \t\f]*#.*?coding[:=][ \t]*([-\w.]+)")
+
+
+def _read_source(path):
+    """
+    The file's text and the encoding to write it back with. Legacy projects
+    often have Latin-1 files: use the PEP 263 "coding:" line when there is
+    one, then UTF-8, then Latin-1 (which decodes any byte, so writing back
+    with it reproduces the original bytes exactly).
+    """
+    with io.open(path, "rb") as f:
+        raw = f.read()
+    candidates = []
+    for line in raw.splitlines()[:2]:
+        match = _CODING_RE.match(line)
+        if match:
+            candidates.append(match.group(1).decode("ascii"))
+            break
+    candidates += ["utf-8", "latin-1"]
+    for encoding in candidates:
+        try:
+            return raw.decode(encoding), encoding
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("latin-1"), "latin-1"
+
+
 def clean_file(path, dry_run=False):
-    # io.open decodes/encodes explicitly on both Python 2 and 3, unlike the
-    # builtin open() which doesn't accept encoding= on Python 2.
-    # newline="" keeps the file's own line endings (LF or CRLF) instead of
-    # rewriting every line in the OS default, which would show the whole
-    # file as changed in git.
-    with io.open(path, "r", encoding="utf-8", newline="") as f:
-        source = f.read()
+    # Bytes are decoded by hand (see _read_source) and the result keeps the
+    # file's own line endings (LF or CRLF) instead of rewriting every line in
+    # the OS default, which would show the whole file as changed in git.
+    source, encoding = _read_source(path)
 
     # Python 2's splitlines() only accepts keepends positionally, not as a
     # keyword - splitlines(keepends=True) raises TypeError there.
@@ -271,26 +301,55 @@ def clean_file(path, dry_run=False):
         # rather than corrupting it.
         return 0
 
-    with io.open(path, "w", encoding="utf-8", newline="") as f:
+    with io.open(path, "w", encoding=encoding, newline="") as f:
         f.write(new_source)
 
     return len(marked)
 
 
+def _is_installed_code(path):
+    """A virtualenv (whatever its name) or an installed-packages folder."""
+    if os.path.basename(path).lower() == "site-packages":
+        return True
+    return any(
+        os.path.exists(os.path.join(path, marker))
+        for marker in ("pyvenv.cfg", os.path.join("bin", "activate"), os.path.join("Scripts", "activate"))
+    )
+
+
+def _clean_one(path, dry_run):
+    """clean_file, but a file that can't be processed is reported and skipped
+    instead of stopping the whole run."""
+    try:
+        return clean_file(path, dry_run=dry_run)
+    except Exception as e:
+        safe_print(u"! {} ({}: {})".format(_text(path), type(e).__name__, _text(str(e)).splitlines()[0]))
+        return 0
+
+
+def _text(value):
+    if isinstance(value, text_type):
+        return value
+    return value.decode("utf-8", "replace")
+
+
 def clean_directory(root, dry_run=False):
     if os.path.isfile(root):
-        return clean_file(root, dry_run=dry_run)
+        return _clean_one(root, dry_run)
 
     total_removed = 0
 
     for base, dirs, files in os.walk(root):
-        # Impede o os.walk de entrar nesses diretórios
-        dirs[:] = [d for d in dirs if d.lower() not in IGNORE_DIRS]
+        # Don't descend into tooling folders or installed code (virtualenvs of
+        # any name), which hold thousands of files and none of ours.
+        dirs[:] = [
+            d for d in dirs
+            if d.lower() not in IGNORE_DIRS and not _is_installed_code(os.path.join(base, d))
+        ]
 
         for name in files:
             if name.endswith(".py"):
-                path = os.path.join(base, name)
-                total_removed += clean_file(path, dry_run=dry_run)
+                total_removed += _clean_one(os.path.join(base, name), dry_run)
 
     return total_removed
 
@@ -299,9 +358,8 @@ def main():
     try:
         args = sys.argv[1:]
         dry_run = "--dry-run" in args
-        positional = [a for a in args if a != "--dry-run"]
-        target = positional[0] if positional else "."
-        removed = clean_directory(target, dry_run=dry_run)
+        targets = [a for a in args if a != "--dry-run"] or ["."]
+        removed = sum(clean_directory(target, dry_run=dry_run) for target in targets)
         safe_print(
             "{}[{} SIREN CLEAN {}] {}{} linhas {}{}".format(
                 COLOR,

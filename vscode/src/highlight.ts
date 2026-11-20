@@ -52,20 +52,18 @@ export class CallHighlighter implements vscode.Disposable {
       on && active?.document.languageId === "python" ? findSirenLines(active.document.getText()).length : 0;
     const total = on ? Math.max(this.workspace.total(), here) : 0;
     const plural = (n: number) => `${n} siren() call${n === 1 ? "" : "s"}`;
+    // Click opens a menu: remove from this file, from the whole workspace, or list them.
+    this.status.command = "siren.statusMenu";
     if (here > 0) {
-      // Click removes this file's calls, as before.
       this.status.text = total > here ? `🧜 ${here} · ${total}` : `🧜 ${here}`;
       this.status.tooltip =
         `${plural(here)} in this file` +
-        (total > here ? `, ${total} in the workspace (see Siren → Calls)` : "") +
-        ". Click to remove this file's calls.";
-      this.status.command = "siren.cleanFile";
+        (total > here ? `, ${total} in the workspace` : "") +
+        ". Click to remove them from this file or the whole workspace.";
       this.status.show();
     } else if (total > 0) {
-      // Nothing in this file, but some elsewhere: click lists them.
       this.status.text = `🧜 ${total}`;
-      this.status.tooltip = `${plural(total)} in the workspace, none in this file. Click to see them.`;
-      this.status.command = "siren.calls.focus";
+      this.status.tooltip = `${plural(total)} in the workspace, none in this file. Click to remove or list them.`;
       this.status.show();
     } else {
       this.status.hide();

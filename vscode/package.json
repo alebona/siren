@@ -2,7 +2,7 @@
   "name": "siren",
   "displayName": "Siren",
   "description": "Print-debugging for Python without the cleanup: siren(x) values inline in the editor, one-click removal, code checks, snippets and an HTTP client.",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "publisher": "alebona",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -76,6 +76,17 @@
         "title": "Run Python File with Siren",
         "category": "Siren",
         "icon": "$(play)"
+      },
+      {
+        "command": "siren.runDjango",
+        "title": "Run Django Server with Siren",
+        "category": "Siren",
+        "icon": "$(server-process)"
+      },
+      {
+        "command": "siren.statusMenu",
+        "title": "Remove or List siren() Calls...",
+        "category": "Siren"
       },
       {
         "command": "siren.enableEnvironment",
@@ -467,6 +478,12 @@
           "default": 10,
           "minimum": 1,
           "description": "Flag functions whose cyclomatic complexity is above this number."
+        },
+        "siren.django.runserverArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["runserver"],
+          "description": "Arguments after manage.py for Run Django Server, e.g. [\"runserver\", \"0.0.0.0:8000\", \"--settings=myproject.settings.dev\"]."
         },
         "siren.envCheck.enabled": {
           "type": "boolean",

@@ -7,6 +7,7 @@ import {
   indentAfter,
   parseCleanPreview,
   parseRemovedCount,
+  parseSkipped,
   summarize,
 } from "../sirenCalls";
 
@@ -53,6 +54,14 @@ test("indentAfter indents one level after a block opener", () => {
 test("summarize flattens and truncates", () => {
   assert.equal(summarize("{'a': 1,\n 'b': 2}"), "{'a': 1, 'b': 2}");
   assert.equal(summarize("x".repeat(100), 10), "xxxxxxxxx…");
+});
+
+test("parseSkipped lists the files siren-clean skipped", () => {
+  assert.deepEqual(parseSkipped("! app/a.py (ValueError: boom)\r\n[SIREN CLEAN] 2 linhas removidas\n! b.py (IOError: x)\n"), [
+    "app/a.py (ValueError: boom)",
+    "b.py (IOError: x)",
+  ]);
+  assert.deepEqual(parseSkipped("nothing\n"), []);
 });
 
 test("parseRemovedCount reads the colored siren-clean summary", () => {

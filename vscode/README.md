@@ -4,6 +4,12 @@ Print-debugging for Python, without the cleanup. Write `siren(x)`, run your code
 
 Nothing to `pip install`: the extension carries its own runtime and makes `siren` available to any Python program you start from a VS Code terminal or the Python debugger.
 
+## Django
+
+In a project with a `manage.py`, **Run Django server** (Actions panel) starts `manage.py runserver` with Siren loaded. Put `siren(request.user)` or `siren(form.cleaned_data)` in a view, load the page, and the value shows at the end of that line in the editor, request after request. The autoreloader's restarts keep working. Change the arguments (port, settings module) with `siren.django.runserverArgs`.
+
+Starting the server some other way (your own terminal, a run script)? Run **Enable everywhere** once and every process of the project's Python gets Siren.
+
 ## Debug
 
 **Values inline.** Each `siren(...)` call shows its latest value at the end of its line. Hover to see the last five values (handy in loops). Every value is also logged to the **Siren** output channel (`Siren: Show Captured Values`).
@@ -19,7 +25,7 @@ for i in range(3):
 
 **Highlighted calls.** Lines with `siren(...)` or `@siren.*` decorators are tinted and marked in the scrollbar, and the status bar shows how many the current file has, so none slip into a commit.
 
-**Remove them all.** `Siren: Remove siren() Calls from This File` (or click the status bar count) and `Siren: Remove siren() Calls from Workspace` delete the calls and their imports. The workspace command first lists the files that will change. When a call is the only line in a block, such as a loop whose body is just `siren(i)`, Siren leaves a `pass` in its place so the code stays valid.
+**Remove them all.** Click the 🧜 count in the status bar to remove the calls from this file or from the whole workspace (or use `Siren: Remove siren() Calls from This File` / `...from Workspace`). The calls and their imports go; the workspace command first lists the files that will change and shows its progress. Files in Latin-1 or another declared encoding are written back in the same encoding. When a call is the only line in a block, such as a loop whose body is just `siren(i)`, Siren leaves a `pass` in its place so the code stays valid.
 
 The rest of the API works too: `@siren.trace` logs a function's calls and return values, `siren.diff(a, b)` shows what changed between two objects, `siren.memory()` prints memory use, `with siren.catch():` prints a readable traceback, and `siren.breakpoint()` pauses and lists local variables.
 

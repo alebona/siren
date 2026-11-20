@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+Built for framework projects, starting with Django.
+
+- **Run Django server** (Actions panel, or `Siren: Run Django Server with Siren`): starts `manage.py runserver` in a new terminal with Siren loaded, so `siren()` in views, models and forms shows its value on each request, including in the autoreloader's child process. It appears when the project has a `manage.py`; set the arguments with `siren.django.runserverArgs`.
+- **The status bar 🧜 opens a menu**: remove the calls from this file, from the whole workspace, or list them all.
+- **Removing calls from the whole workspace** is fast on big projects and shows its progress: it only touches the files the Calls list knows about, instead of walking every folder (a virtualenv with an unusual name could mean thousands of files and no visible response).
+- Removing calls works on files saved in Latin-1 or another encoding declared with `# -*- coding: ... -*-`, and writes them back in the same encoding. A file that can't be processed is reported and skipped instead of stopping the rest.
+- `siren-clean` skips virtualenvs whatever their name (`pyvenv.cfg`, `activate` scripts, `site-packages`) and accepts several files at once.
+
 ## 1.2.3
 
 - The Calls list no longer misses `siren()` calls in two timing cases: a file edited while Siren was still reading it from disk (the older disk copy could overwrite the edit), and a new folder whose files arrive right after it's created (a `git checkout` or `pull`). Release 1.2.2 was never published, so its changes ship here.

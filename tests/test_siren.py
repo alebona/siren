@@ -1,6 +1,7 @@
 import io
 import os
 import re
+import shutil
 import sys
 import tempfile
 import textwrap
@@ -213,6 +214,79 @@ class TestSirenCleaner(unittest.TestCase):
 
         self.assertEqual(removed, 1)
         self.assertEqual(result, u"# -*- coding: utf-8 -*-\npreço = 10\n")
+
+    def test_clean_file_latin1_keeps_the_original_bytes(self):
+        path = self._write_temp_file("")
+        original = u"# -*- coding: latin-1 -*-\npreço = 10\nsiren(preço)\nprint(preço)\n"
+        with io.open(path, "wb") as f:
+            f.write(original.encode("latin-1"))
+        removed = clean.clean_file(path)
+        with io.open(path, "rb") as f:
+            result = f.read()
+        os.unlink(path)
+
+        self.assertEqual(removed, 1)
+        self.assertEqual(result, u"# -*- coding: latin-1 -*-\npreço = 10\nprint(preço)\n".encode("latin-1"))
+
+    def test_clean_file_undeclared_latin1_still_cleaned(self):
+        # Not valid UTF-8 and no coding line (an old file saved in Latin-1).
+        path = self._write_temp_file("")
+        with io.open(path, "wb") as f:
+            f.write(b"x = 1  # pre\xe7o\nsiren(x)\n")
+        removed = clean.clean_file(path)
+        with io.open(path, "rb") as f:
+            result = f.read()
+        os.unlink(path)
+
+        self.assertEqual(removed, 1)
+        self.assertEqual(result, b"x = 1  # pre\xe7o\n")
+
+    def test_clean_directory_skips_virtualenvs_of_any_name_and_bad_files(self):
+        root = tempfile.mkdtemp()
+        try:
+            app = os.path.join(root, "app")
+            venv = os.path.join(root, "env27")  # a virtualenv, by its pyvenv.cfg
+            os.makedirs(app)
+            os.makedirs(os.path.join(venv, "lib"))
+            with io.open(os.path.join(venv, "pyvenv.cfg"), "w") as f:
+                f.write(u"home = /usr/bin\n")
+            for path, text in [
+                (os.path.join(app, "views.py"), u"x = 1\nsiren(x)\n"),
+                (os.path.join(app, "models.py"), u"y = 2\nsiren(y)\n"),
+                (os.path.join(venv, "lib", "dep.py"), u"siren(1)\n"),
+            ]:
+                with io.open(path, "w", encoding="utf-8") as f:
+                    f.write(text)
+            # A file that fails mid-run must not stop the others.
+            original = clean.clean_file
+
+            def flaky(path, dry_run=False):
+                if path.endswith("models.py"):
+                    raise ValueError("boom")
+                return original(path, dry_run=dry_run)
+
+            with mock.patch.object(clean, "clean_file", flaky), \
+                    mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                removed = clean.clean_directory(root)
+
+            self.assertEqual(removed, 1)
+            self.assertIn("models.py (ValueError: boom)", out.getvalue())
+            self.assertEqual(self._read(os.path.join(app, "views.py")), "x = 1\n")
+            self.assertEqual(self._read(os.path.join(venv, "lib", "dep.py")), "siren(1)\n")
+        finally:
+            shutil.rmtree(root, True)
+
+    def test_main_accepts_several_files(self):
+        paths = [self._write_temp_file("siren(1)\n") for _ in range(2)]
+        try:
+            with mock.patch.object(sys, "argv", ["siren-clean"] + paths), \
+                    mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                clean.main()
+            self.assertIn("2 linhas removidas", out.getvalue())
+            self.assertEqual([self._read(p) for p in paths], ["", ""])
+        finally:
+            for p in paths:
+                os.unlink(p)
 
     def test_clean_file_handles_crlf_line_endings(self):
         path = self._write_temp_file("")
