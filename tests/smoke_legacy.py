@@ -121,7 +121,9 @@ def main():
     os.makedirs(proj)
     events = os.path.join(work, "events.jsonl")
     # What the extension sets for terminals and debug sessions.
-    pythonpath = os.pathsep.join([RUNTIME, ROOT])
+    # The repo root first, so `import siren` gets this checkout, not the copy
+    # npm build leaves in vscode/python; sitecustomize comes from there.
+    pythonpath = os.pathsep.join([ROOT, RUNTIME])
     env = env_with(PYTHONPATH=pythonpath, SIREN_VSCODE_EVENTS=events, HOME=home, USERPROFILE=home)
     print("Python %s" % sys.version.split()[0])
 

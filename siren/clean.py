@@ -59,72 +59,252 @@ def _multiline_string_lines(tokens):
     return lines
 
 
-def _collect_siren_lines(source):
-    # Python 2's splitlines() only accepts keepends positionally, not as a
-    # keyword - splitlines(keepends=True) raises TypeError there.
-    lines = source.splitlines(True)
-    marked = set()
+_SKIP = (tokenize.NL, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT)
 
+
+class _Plan(object):
+    """What to change in a file to take siren out of it."""
+
+    def __init__(self):
+        self.remove = set()  # whole lines to drop (1-based)
+        self.cuts = []       # (row, start_col, end_col): text to delete inside a line
+        self.dedents = []    # (first_row, last_row, columns): blocks to shift left
+        self.kept = []       # rows with a siren use this can't take out safely
+        self.string_lines = set()  # rows inside a multi-line string (left as they are)
+
+    def changes(self):
+        return len(self.remove) + len(set(row for row, _, _ in self.cuts))
+
+
+def _matching_paren(tokens, open_index):
+    depth = 0
+    for k in range(open_index, len(tokens)):
+        if tokens[k][0] == tokenize.OP:
+            if tokens[k][1] in "([{":
+                depth += 1
+            elif tokens[k][1] in ")]}":
+                depth -= 1
+                if depth == 0:
+                    return k
+    return None
+
+
+def _significant(tokens, index, step):
+    k = index + step
+    while 0 <= k < len(tokens) and tokens[k][0] in _SKIP:
+        k += step
+    return k if 0 <= k < len(tokens) else None
+
+
+def _single_argument(tokens, open_index, close_index):
+    """True when the call's positional arguments are exactly one (keywords
+    like label= are fine): siren(x, label="a") returns x."""
+    depth = 0
+    positional = 0
+    starts_arg = True
+    for k in range(open_index + 1, close_index):
+        kind, value = tokens[k][0], tokens[k][1]
+        if kind in _SKIP:
+            continue
+        if kind == tokenize.OP and value in "([{":
+            depth += 1
+        elif kind == tokenize.OP and value in ")]}":
+            depth -= 1
+        if depth == 0 and kind == tokenize.OP and value == ",":
+            starts_arg = True
+            continue
+        if starts_arg and depth == 0:
+            starts_arg = False
+            nxt = _significant(tokens, k, 1)
+            is_keyword = kind == tokenize.NAME and nxt is not None and tokens[nxt][1] == "="
+            if value in ("*", "**"):
+                return False
+            if not is_keyword:
+                positional += 1
+    return positional == 1
+
+
+def _plan(source):
+    """
+    Find every use of siren in `source` and decide how to take it out:
+
+    - a statement (siren(x), siren.diff(a, b), siren.set_quiet(True)): drop it
+    - a decorator (@siren.trace, @siren.profile(...)): drop it
+    - inside an expression (total = siren(compute())): keep the argument,
+      `total = compute()`, since that's what siren returned
+    - `with siren.catch():`: drop the header and shift its block left
+    - `from siren import siren`: drop it
+    """
+    plan = _Plan()
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
-    except tokenize.TokenError:
-        return marked
-
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        tokens = []
+    lines = source.splitlines(True)
     string_lines = _multiline_string_lines(tokens)
+    plan.string_lines = string_lines
 
     for index, token in enumerate(tokens):
-        toknum, tokval, start, _, _ = token
+        if token[0] != tokenize.NAME or token[1] != TOKEN_NAME:
+            continue
+        prev = _significant(tokens, index, -1)
+        prev_value = tokens[prev][1] if prev is not None else None
+        prev_kind = tokens[prev][0] if prev is not None else None
+        # def siren(...), obj.siren(...), import siren: not ours to remove.
+        if prev_value in ("def", "class", ".", "import", "as", "from"):
+            continue
 
-        if toknum == tokenize.NAME and tokval == TOKEN_NAME:
-            # Skip definitions like `def siren(...)` / `def siren.trace(...)` -
-            # only actual calls should be stripped, not the definition itself.
-            prev = index - 1
-            while prev >= 0 and tokens[prev][0] in (
-                tokenize.NL,
-                tokenize.INDENT,
-                tokenize.DEDENT,
-                tokenize.COMMENT,
-            ):
-                prev -= 1
+        # Walk siren.attr.attr
+        end = index
+        nxt = _significant(tokens, end, 1)
+        while nxt is not None and tokens[nxt][1] == "." and tokens[nxt + 1][0] == tokenize.NAME:
+            end = nxt + 1
+            nxt = _significant(tokens, end, 1)
+        has_call = nxt is not None and tokens[nxt][0] == tokenize.OP and tokens[nxt][1] == "("
+        close = _matching_paren(tokens, nxt) if has_call else None
+        last = close if close is not None else end
+        first_row = token[2][0]
+        last_row = tokens[last][3][0]
 
-            if prev >= 0 and tokens[prev][0] == tokenize.NAME and tokens[prev][1] == "def":
-                continue
+        statement_start = prev is None or prev_kind in (tokenize.NEWLINE, tokenize.ENDMARKER) or prev_value == ";"
+        after = _significant(tokens, last, 1)
+        statement_end = after is None or tokens[after][0] in (tokenize.NEWLINE, tokenize.ENDMARKER) or tokens[after][1] == ";"
 
-            j = index + 1
-            while j < len(tokens) and tokens[j][0] in (
-                tokenize.NL,
-                tokenize.NEWLINE,
-                tokenize.INDENT,
-                tokenize.DEDENT,
-                tokenize.ENDMARKER,
-            ):
-                j += 1
-
-            if j < len(tokens) and tokens[j][0] == tokenize.OP and tokens[j][1] == "(":
-                depth = 0
-                k = j
-
-                while k < len(tokens):
-                    toknum2, tokval2, start2, _, _ = tokens[k]
-                    marked.add(start2[0])
-
-                    if toknum2 == tokenize.OP:
-                        if tokval2 == "(":
-                            depth += 1
-                        elif tokval2 == ")":
-                            depth -= 1
-                            if depth == 0:
-                                break
-
-                    k += 1
+        if prev_value == "@":
+            # Decorator: from the @ line through its arguments, if any.
+            plan.remove.update(range(tokens[prev][2][0], last_row + 1))
+        elif statement_start and statement_end:
+            plan.remove.update(range(first_row, last_row + 1))
+        elif prev_value == "with" and has_call and close is not None and statement_end is False \
+                and tokens[after][1] == ":":
+            _plan_with(tokens, prev, after, lines, plan)
+        elif has_call and close is not None and end == index and _single_argument(tokens, nxt, close) \
+                and tokens[index][2][0] == tokens[nxt][2][0]:
+            _plan_unwrap(tokens, index, nxt, close, plan)
+        else:
+            plan.kept.append(first_row)
 
     for lineno, line in enumerate(lines, 1):
-        if lineno in string_lines:
-            continue
-        if IMPORT_RE.match(line):
-            marked.add(lineno)
+        if lineno not in string_lines and IMPORT_RE.match(line):
+            plan.remove.add(lineno)
+    return plan
 
-    return marked
+
+_LOOSE_KEYWORDS = ("and", "or", "not", "is", "in", "if", "else", "lambda", "for", "await", "yield")
+
+
+def _is_simple(tokens, first, last):
+    """No operator at the top level (a name, a call, an attribute, a literal),
+    so the argument can lose its parentheses without changing what it means."""
+    depth = 0
+    for k in range(first, last + 1):
+        kind, value = tokens[k][0], tokens[k][1]
+        if kind in _SKIP:
+            continue
+        if kind == tokenize.OP and value in "([{":
+            depth += 1
+        elif kind == tokenize.OP and value in ")]}":
+            depth -= 1
+        elif depth == 0:
+            if kind == tokenize.OP and value != ".":
+                return False
+            if kind == tokenize.NAME and value in _LOOSE_KEYWORDS:
+                return False
+    return True
+
+
+def _plan_unwrap(tokens, index, open_index, close_index, plan):
+    """
+    siren(...) inside an expression returns its single positional argument,
+    so keep that: `total = siren(compute(), label="x")` -> `total = compute()`.
+    A compound argument keeps its parentheses: `siren(a + b).real` ->
+    `(a + b).real`.
+    """
+    comma = _top_level_comma(tokens, open_index, close_index)
+    arg_last = _significant(tokens, comma if comma is not None else close_index, -1)
+    simple = _is_simple(tokens, open_index + 1, arg_last)
+    row, col = tokens[index][2]
+    head = (row, col, tokens[open_index][3][1] if simple else tokens[open_index][2][1])  # "siren(" or "siren"
+    tail_from = tokens[arg_last][3]
+    tail_to = tokens[close_index][3] if simple else tokens[close_index][2]  # through ")" or up to it
+    if tail_from[0] == tail_to[0]:
+        tail = (tail_from[0], tail_from[1], tail_to[1]) if tail_to[1] > tail_from[1] else None
+    elif comma is None and simple:
+        tail = (tokens[close_index][2][0], tokens[close_index][2][1], tokens[close_index][3][1])  # just ")"
+    elif comma is None:
+        tail = None
+    else:
+        plan.kept.append(row)  # keyword arguments spread over several lines
+        return
+    plan.cuts.append(head)
+    if tail:
+        plan.cuts.append(tail)
+
+
+def _top_level_comma(tokens, open_index, close_index):
+    depth = 0
+    for k in range(open_index + 1, close_index):
+        kind, value = tokens[k][0], tokens[k][1]
+        if kind == tokenize.OP and value in "([{":
+            depth += 1
+        elif kind == tokenize.OP and value in ")]}":
+            depth -= 1
+        elif depth == 0 and kind == tokenize.OP and value == ",":
+            return k
+    return None
+
+
+def _plan_with(tokens, with_index, colon_index, lines, plan):
+    """`with siren.catch():` -> drop the header and shift its block left."""
+    header_row = tokens[with_index][2][0]
+    header = lines[header_row - 1]
+    header_indent = len(header) - len(header.lstrip(" \t"))
+    after_colon = _significant(tokens, colon_index, 1)
+    if after_colon is None or tokens[after_colon][0] != tokenize.NEWLINE:
+        plan.kept.append(header_row)  # `with siren.catch(): x()` on one line
+        return
+    first = header_row + 1
+    while first <= len(lines) and not lines[first - 1].strip():
+        first += 1
+    if first > len(lines):
+        plan.kept.append(header_row)
+        return
+    body_indent = len(lines[first - 1]) - len(lines[first - 1].lstrip(" \t"))
+    last = first
+    for row in range(first, len(lines) + 1):
+        text = lines[row - 1]
+        if text.strip() and len(text) - len(text.lstrip(" \t")) < body_indent:
+            break
+        if text.strip():
+            last = row
+    plan.remove.add(header_row)
+    plan.dedents.append((first, last, body_indent - header_indent))
+
+
+def _collect_siren_lines(source):
+    """Lines that removing siren changes (kept for the dry run's count)."""
+    plan = _plan(source)
+    return plan.remove | set(row for row, _, _ in plan.cuts)
+
+
+def _apply_cuts_and_dedents(lines, plan, string_lines):
+    lines = list(lines)
+    by_row = {}
+    for row, start, end in plan.cuts:
+        by_row.setdefault(row, []).append((start, end))
+    for row, spans in by_row.items():
+        text = lines[row - 1]
+        for start, end in sorted(spans, reverse=True):
+            text = text[:start] + text[end:]
+        lines[row - 1] = text
+    for first, last, columns in plan.dedents:
+        for row in range(first, last + 1):
+            text = lines[row - 1]
+            if row in string_lines or not text.strip():
+                continue
+            lead = len(text) - len(text.lstrip(" \t"))
+            lines[row - 1] = text[min(columns, lead):]
+    return lines
 
 
 def _compiles(source, path):
@@ -218,13 +398,13 @@ def _rebuild(lines, marked, placeholders):
     return "".join(out)
 
 
-def _remove_lines(lines, marked, path):
+def _remove_lines(lines, marked, path, original=None):
     """
     Remove the marked lines. When that would leave a block empty (a loop or
     if whose only line was siren(...)), keep a `pass` where the call was -
     only where one is needed. Returns None if no version compiles.
     """
-    if not _compiles("".join(lines), path):
+    if not _compiles(original if original is not None else "".join(lines), path):
         # This interpreter can't compile the file even before any change
         # (Python 2 code checked by Python 3, or the reverse), so compiling
         # can't tell a good result from a bad one. Go by the code's shape.
@@ -283,19 +463,19 @@ def clean_file(path, dry_run=False):
     # keyword - splitlines(keepends=True) raises TypeError there.
     lines = source.splitlines(True)
 
-    try:
-        marked = _collect_siren_lines(source)
-    except Exception as e:
-        raise type(e)("{}\nArquivo: {}".format(e, path))
-
-    if not marked:
+    plan = _plan(source)
+    for row in plan.kept:
+        safe_print(u"! {}:{} (kept: this siren use can't be removed safely; remove it by hand)".format(_text(path), row))
+    count = plan.changes()
+    if not count:
         return 0
 
     if dry_run:
-        safe_print("✓ {} ({} linhas)".format(path, len(marked)))
-        return len(marked)
+        safe_print("✓ {} ({} linhas)".format(path, count))
+        return count
 
-    new_source = _remove_lines(lines, marked, path)
+    edited = _apply_cuts_and_dedents(lines, plan, plan.string_lines)
+    new_source = _remove_lines(edited, plan.remove, path, original="".join(lines))
     if new_source is None:
         # Not even placeholders give valid Python. Leave the file untouched
         # rather than corrupting it.
@@ -304,7 +484,7 @@ def clean_file(path, dry_run=False):
     with io.open(path, "w", encoding=encoding, newline="") as f:
         f.write(new_source)
 
-    return len(marked)
+    return count
 
 
 def _is_installed_code(path):

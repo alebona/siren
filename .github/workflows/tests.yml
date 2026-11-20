@@ -47,6 +47,36 @@ jobs:
     - name: Legacy project smoke test on Python 2.7
       run: docker run --rm -v "$PWD:/src" -w /src python:2.7 python tests/smoke_legacy.py
 
+    # Django 1.11 and Flask 1.1 are the last releases that run on Python 2.7.
+    - name: Django and Flask on Python 2.7
+      run: >
+        docker run --rm -v "$PWD:/src" -w /src python:2.7 sh -c
+        "pip install -q --disable-pip-version-check Django==1.11.29 Flask==1.1.4 Werkzeug==1.0.1
+        Jinja2==2.11.3 MarkupSafe==1.1.1 itsdangerous==1.1.0 click==7.1.2
+        && python tests/frameworks_e2e.py django flask"
+
+  # siren() in real web frameworks: each one's dev server with its autoreloader
+  # on, a request to a view, then removing the calls.
+  frameworks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install the frameworks
+      run: python -m pip install --disable-pip-version-check Django==5.1.4 Flask==3.1.0 fastapi==0.115.6 uvicorn==0.32.1
+
+    - name: Django, Flask and FastAPI
+      run: python tests/frameworks_e2e.py django flask fastapi
+
   extension:
     runs-on: ubuntu-latest
     defaults:

@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import io
 import pprint
+import functools
 import inspect
 import linecache
 import re
@@ -436,6 +437,39 @@ def _format_trace_args(func, args, kwargs):
         return ", ".join(parts)
 
 
+def _is_async(func):
+    check = getattr(inspect, "iscoroutinefunction", None)  # Python 3.5+
+    return bool(check and check(func))
+
+
+def _wrap(target, before, after, on_error):
+    """
+    Wrap `target` so state = before(args, kwargs) runs first, then
+    after(result, state) on success or on_error(exception, state) on
+    failure (the exception is always re-raised), keeping the function's
+    name, docstring and signature (functools.wraps). Frameworks depend on
+    those: Flask names routes after the function, FastAPI reads its
+    parameters. Coroutine functions (async def views) get an async wrapper
+    that awaits them.
+    """
+    if _is_async(target):
+        from ._async import wrap_async  # Python 3 only: async syntax
+        return wrap_async(target, before, after, on_error)
+
+    @functools.wraps(target)
+    def wrapper(*args, **kwargs):
+        state = before(args, kwargs)
+        try:
+            result = target(*args, **kwargs)
+        except Exception as e:
+            on_error(e, state)
+            raise
+        after(result, state)
+        return result
+
+    return wrapper
+
+
 def trace(func=None, **options):
     """
     Decorator to display function entry and exit automatically.
@@ -454,52 +488,26 @@ def trace(func=None, **options):
     show_type = options.get("show_type", True)
 
     def decorator(target):
-        def wrapper(*args, **kwargs):
+        def before(args, kwargs):
             arg_text = _format_trace_args(target, args, kwargs) if show_args else ""
             call_label = _fmt("Calling {}", target.__name__)
-            if arg_text:
-                call_label += _fmt("({})", arg_text)
-            else:
-                call_label += "()"
-
-            start = _perf_counter() if timeit else None
+            call_label += _fmt("({})", arg_text) if arg_text else "()"
             siren.info(call_label)
+            return _perf_counter() if timeit else None
 
-            result = None
-            exception_occurred = False
-            try:
-                result = target(*args, **kwargs)
-            except Exception as e:
-                exception_occurred = True
-                exc_type = type(e).__name__
-                exc_msg = str(e)
-                siren.info(_fmt("Exception in {} -> {}: {}", target.__name__, exc_type, exc_msg))
-                raise
-            finally:
-                if not exception_occurred:
-                    elapsed_text = ""
-                    if timeit:
-                        elapsed = _perf_counter() - start
-                        elapsed_text = _fmt(" ({:.6f}s)", elapsed)
+        def on_error(e, start):
+            siren.info(_fmt("Exception in {} -> {}: {}", target.__name__, type(e).__name__, str(e)))
 
-                    if show_return and result is not None:
-                        result_text = _format_value_for_trace(result, max_len=100)
-                        type_text = _fmt(" [{}]", type(result).__name__) if show_type else ""
-                        siren.info(
-                            _fmt("Returned from {} -> {}{}{}", 
-                                target.__name__, result_text, type_text, elapsed_text
-                            )
-                        )
-                    elif show_return and result is None and timeit:
-                        siren.info(
-                            _fmt("Completed {} (None){}", 
-                                target.__name__, elapsed_text
-                            )
-                        )
+        def after(result, start):
+            elapsed_text = _fmt(" ({:.6f}s)", _perf_counter() - start) if timeit else ""
+            if show_return and result is not None:
+                result_text = _format_value_for_trace(result, max_len=100)
+                type_text = _fmt(" [{}]", type(result).__name__) if show_type else ""
+                siren.info(_fmt("Returned from {} -> {}{}{}", target.__name__, result_text, type_text, elapsed_text))
+            elif show_return and result is None and timeit:
+                siren.info(_fmt("Completed {} (None){}", target.__name__, elapsed_text))
 
-            return result
-
-        return wrapper
+        return _wrap(target, before, after, on_error)
 
     if func is None:
         return decorator

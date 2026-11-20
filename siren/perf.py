@@ -140,20 +140,20 @@ def profile(func=None, label=None, sample_rate=1.0, min_duration_ms=0.0):
     def decorator(target):
         name = getattr(target, "__name__", repr(target))
 
-        def wrapper(*args, **kwargs):
-            start = _perf_counter()
-            ok = True
-            try:
-                return target(*args, **kwargs)
-            except Exception:
-                ok = False
-                raise
-            finally:
-                elapsed_ms = (_perf_counter() - start) * 1000.0
-                if elapsed_ms >= min_duration_ms and (sample_rate >= 1.0 or random.random() < sample_rate):
-                    _record(name, elapsed_ms, ok, label)
+        def finish(start, ok):
+            elapsed_ms = (_perf_counter() - start) * 1000.0
+            if elapsed_ms >= min_duration_ms and (sample_rate >= 1.0 or random.random() < sample_rate):
+                _record(name, elapsed_ms, ok, label)
 
-        return wrapper
+        # Same wrapper as siren.trace: keeps the function's name and signature
+        # (frameworks route by them) and awaits async def views.
+        from .core import _wrap
+        return _wrap(
+            target,
+            before=lambda args, kwargs: _perf_counter(),
+            after=lambda result, start: finish(start, True),
+            on_error=lambda e, start: finish(start, False),
+        )
 
     if func is None:
         return decorator
